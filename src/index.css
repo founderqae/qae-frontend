@@ -1,0 +1,32 @@
+/* Premium Teal Color Theme Variables */
+:root {
+  /* Primary Brand Colors */
+  --primary-teal: #0d9488;
+  --primary-cyan: #0891b2;
+  
+  /* Surface Colors */
+  --surface-white: #ffffff;
+  --background-light-teal: #f0fdfa;
+  
+  /* Text Colors */
+  --text-dark-slate: #1e293b;
+  
+  /* Additional Teal Variations */
+  --teal-50: #f0fdfa;
+  --teal-500: #14b8a6;
+  --teal-600: #0d9488;
+  --teal-700: #0f766e;
+  
+  /* Additional Cyan Variations */
+  --cyan-50: #ecfeff;
+  --cyan-600: #0891b2;
+  --cyan-700: #0e7490;
+  
+  /* Additional Slate Variations */
+  --slate-50: #f8fafc;
+  --slate-300: #cbd5e1;
+  --slate-500: #64748b;
+  --slate-600: #475569;
+  --slate-800: #1e293b;
+}
+@import "tailwindcss";
