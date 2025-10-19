@@ -24,7 +24,7 @@ const NavBar = () => {
           return;
         }
 
-        const response = await axios.get('http://localhost:5000/api/institution/current-user', {
+        const response = await axios.get('https://qae-server.vercel.app/api/institution/current-user', {
           headers: { Authorization: `Bearer ${token}` },
         });
 
@@ -35,7 +35,7 @@ const NavBar = () => {
         setIsAuthenticated(true);
       } catch (error) {
         console.error('Error fetching user data:', error);
-        if (error.response?.status === 401) {
+        if (error.response?.status === 401 || error.response?.status === 500) {
           // Token expired or invalid
           handleLogout();
         }

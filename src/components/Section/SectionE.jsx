@@ -13,7 +13,7 @@ const SectionE = ({ formData = {}, setFormData, onNext, onBack }) => {
     const fetchData = async () => {
       try {
         // Fetch year configuration
-        const yearRes = await fetch('http://localhost:5000/api/config/year', {
+        const yearRes = await fetch('https://qae-server.vercel.app/api/config/year', {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -29,7 +29,7 @@ const SectionE = ({ formData = {}, setFormData, onNext, onBack }) => {
         const emptyYears = fetchedYears.reduce((acc, y) => ({ ...acc, [y]: '' }), {});
 
         // Fetch Section E data
-        const sectionRes = await fetch('http://localhost:5000/api/submit/submissions/section-e', {
+        const sectionRes = await fetch('https://qae-server.vercel.app/api/submit/submissions/section-e', {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -269,7 +269,7 @@ const SectionE = ({ formData = {}, setFormData, onNext, onBack }) => {
       };
 
       const method = submissionId ? 'PUT' : 'POST';
-      const res = await fetch('http://localhost:5000/api/submit/submissions/section-e', {
+      const res = await fetch('https://qae-server.vercel.app/api/submit/submissions/section-e', {
         method,
         headers: {
           'Content-Type': 'application/json',

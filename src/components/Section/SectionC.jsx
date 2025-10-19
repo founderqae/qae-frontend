@@ -16,7 +16,7 @@ const SectionC = ({ formData = {}, setFormData, onNext, onBack }) => {
   useEffect(() => {
     const fetchYearConfig = async () => {
       try {
-        const yearRes = await axios.get('http://localhost:5000/api/config/year', {
+        const yearRes = await axios.get('https://qae-server.vercel.app/api/config/year', {
           headers: { Authorization: `Bearer ${token}` }
         });
         const yearConfig = yearRes.data;
@@ -25,7 +25,7 @@ const SectionC = ({ formData = {}, setFormData, onNext, onBack }) => {
         
 
         // Fetch section C data after years are set
-        const sectionRes = await axios.get('http://localhost:5000/api/submit/submissions/section-c', {
+        const sectionRes = await axios.get('https://qae-server.vercel.app/api/submit/submissions/section-c', {
           headers: { Authorization: `Bearer ${token}` }
         });
         const data = sectionRes.data;
@@ -496,7 +496,7 @@ const SectionC = ({ formData = {}, setFormData, onNext, onBack }) => {
       const method = existingData ? 'PUT' : 'POST';
       await axios({
         method,
-        url: 'http://localhost:5000/api/submit/submissions/section-c',
+        url: 'https://qae-server.vercel.app/api/submit/submissions/section-c',
         headers: { Authorization: `Bearer ${token}` },
         data: submitData,
       });

@@ -94,11 +94,11 @@ const StepperForm = () => {
         }
 
         // Fetch if application is open
-        const openResponse = await axios.get('http://localhost:5000/api/date-config/is-open');
+        const openResponse = await axios.get('https://qae-server.vercel.app/api/date-config/is-open');
         setIsApplicationOpen(openResponse.data.isOpen);
 
         // Fetch if user has submitted (requires auth, assuming token is set)
-        const submittedResponse = await axios.get('http://localhost:5000/api/submit/is-submitted',
+        const submittedResponse = await axios.get('https://qae-server.vercel.app/api/submit/is-submitted',
            {
           headers: {
             Authorization: `Bearer ${token}`,

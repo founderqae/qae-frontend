@@ -95,11 +95,11 @@ const SectionA = ({ formData, setFormData, onNext }) => {
 
       let response;
       if (isEditing) {
-        response = await axios.put('http://localhost:5000/api/institution/institutes', payload, {
+        response = await axios.put('https://qae-server.vercel.app/api/institution/institutes', payload, {
           headers: { Authorization: `Bearer ${token}` },
         });
       } else {
-        response = await axios.post('http://localhost:5000/api/institution/institutes', payload, {
+        response = await axios.post('https://qae-server.vercel.app/api/institution/institutes', payload, {
           headers: { Authorization: `Bearer ${token}` },
         });
         setSubmissionId(response.data.institute.id);
@@ -173,7 +173,7 @@ const SectionA = ({ formData, setFormData, onNext }) => {
           return;
         }
 
-        const response = await axios.get('http://localhost:5000/api/institution/institutes', {
+        const response = await axios.get('https://qae-server.vercel.app/api/institution/institutes', {
           headers: { Authorization: `Bearer ${token}` },
         });
 

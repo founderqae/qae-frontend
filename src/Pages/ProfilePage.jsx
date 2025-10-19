@@ -21,7 +21,7 @@ const ProfilePage = () => {
   useEffect(() => {
     const fetchUserData = async () => {
       try {
-        const response = await fetch('http://localhost:5000/api/institution/current-user', {
+        const response = await fetch('https://qae-server.vercel.app/api/institution/current-user', {
           headers: {
             Authorization: `Bearer ${localStorage.getItem('token')}`, // Assuming token is stored in localStorage
           },

@@ -92,7 +92,7 @@ const SectionD = ({ onNext, onBack }) => {
       setLoading(true);
       try {
         const token = localStorage.getItem('token');
-        const response = await axios.get('http://localhost:5000/api/submit/submissions/section-d?year=2025', {
+        const response = await axios.get('https://qae-server.vercel.app/api/submit/submissions/section-d?year=2025', {
           headers: { Authorization: `Bearer ${token}` },
         });
 
@@ -324,14 +324,14 @@ const SectionD = ({ onNext, onBack }) => {
 
     try {
       const token = localStorage.getItem('token');
-      const existingSubmission = await axios.get('http://localhost:5000/api/submit/submissions/section-d?year=2025', {
+      const existingSubmission = await axios.get('https://qae-server.vercel.app/api/submit/submissions/section-d?year=2025', {
         headers: { Authorization: `Bearer ${token}` },
       }).catch(() => null);
 
       const method = existingSubmission ? 'put' : 'post';
       const url = existingSubmission
-        ? 'http://localhost:5000/api/submit/submissions/section-d?year=2025'
-        : 'http://localhost:5000/api/submit/submissions/section-d';
+        ? 'https://qae-server.vercel.app/api/submit/submissions/section-d?year=2025'
+        : 'https://qae-server.vercel.app/api/submit/submissions/section-d';
 
       await axios[method](url, payload, {
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },

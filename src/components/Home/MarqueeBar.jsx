@@ -12,7 +12,7 @@ const MarqueeBar = () => {
   useEffect(() => {
     const fetchApplicationStatus = async () => {
       try {
-        const response = await fetch('http://localhost:5000/api/date-config/is-open');
+        const response = await fetch('https://qae-server.vercel.app/api/date-config/is-open');
         if (!response.ok) {
           throw new Error('Failed to fetch application status');
         }

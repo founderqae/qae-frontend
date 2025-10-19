@@ -13,7 +13,7 @@ const Submissions = () => {
     const fetchSubmissions = async () => {
       try {
         setIsLoading(true); // Set loading to true before fetching
-        const response = await axios.get('http://localhost:5000/api/submit/submissions', {
+        const response = await axios.get('https://qae-server.vercel.app/api/submit/submissions', {
           headers: {
             Authorization: `Bearer ${localStorage.getItem('token')}`,
           },

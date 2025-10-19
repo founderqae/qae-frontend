@@ -17,7 +17,7 @@ const Payment = ({ onBack }) => {
     // Fetch submission ID
     const fetchSubmission = async () => {
       try {
-        const response = await fetch("http://localhost:5000/api/submit/submissions/payment", {
+        const response = await fetch("https://qae-server.vercel.app/api/submit/submissions/payment", {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
           },
@@ -46,7 +46,7 @@ const Payment = ({ onBack }) => {
     // Fetch payment configuration (UPI ID and amount)
     const fetchPaymentConfig = async () => {
       try {
-        const response = await fetch("http://localhost:5000/api/payment/config", {
+        const response = await fetch("https://qae-server.vercel.app/api/payment/config", {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
           },
@@ -66,7 +66,7 @@ const Payment = ({ onBack }) => {
     const fetchQR = async () => {
       try {
         setQrLoading(true);
-        const response = await fetch("http://localhost:5000/api/payment/qr", {
+        const response = await fetch("https://qae-server.vercel.app/api/payment/qr", {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
           },
@@ -103,7 +103,7 @@ const Payment = ({ onBack }) => {
       setLoading(true);
       setError(null);
 
-      const response = await fetch("http://localhost:5000/api/payment/submit", {
+      const response = await fetch("https://qae-server.vercel.app/api/payment/submit", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

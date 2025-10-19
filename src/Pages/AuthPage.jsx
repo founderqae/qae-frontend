@@ -64,7 +64,7 @@ const AuthPage = () => {
 
     try {
       if (currentPage === 'login') {
-        const response = await fetch('http://localhost:5000/api/auth/login', {
+        const response = await fetch('https://qae-server.vercel.app/api/auth/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -93,7 +93,7 @@ const AuthPage = () => {
           setIsLoading(false);
           return;
         }
-        const response = await fetch('http://localhost:5000/api/auth/register', {
+        const response = await fetch('https://qae-server.vercel.app/api/auth/register', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -108,7 +108,7 @@ const AuthPage = () => {
         toast.success('Registration successful! Please verify OTP');
         handlePageChange('verify-otp', { password: '', confirmPassword: '', otp: '' });
       } else if (currentPage === 'verify-otp') {
-        const response = await fetch('http://localhost:5000/api/auth/verify-otp', {
+        const response = await fetch('https://qae-server.vercel.app/api/auth/verify-otp', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -121,7 +121,7 @@ const AuthPage = () => {
         toast.success('OTP verified successfully!');
         handlePageChange('login', { password: '', confirmPassword: '', otp: '' });
       } else if (currentPage === 'forgot') {
-        const response = await fetch('http://localhost:5000/api/auth/forgot-password', {
+        const response = await fetch('https://qae-server.vercel.app/api/auth/forgot-password', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email: formData.email })
@@ -136,7 +136,7 @@ const AuthPage = () => {
           setIsLoading(false);
           return;
         }
-        const response = await fetch('http://localhost:5000/api/auth/update-password', {
+        const response = await fetch('https://qae-server.vercel.app/api/auth/update-password', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

@@ -53,7 +53,7 @@ const SubmissionDetailPage = () => {
         });
 
         // Fetch institute data for Section A (general information)
-        const instituteRes = await axios.get('http://localhost:5000/api/institution/institutes', {
+        const instituteRes = await axios.get('https://qae-server.vercel.app/api/institution/institutes', {
           headers: { Authorization: `Bearer ${token}` },
         });
         const institute = instituteRes.data;
@@ -85,7 +85,7 @@ const SubmissionDetailPage = () => {
 
         // Fetch Section B
         const sectionBRes = await axios.get(
-          `http://localhost:5000/api/submit/submissions/section-b?years=${generatedYears.join(',')}`,
+          `https://qae-server.vercel.app/api/submit/submissions/section-b?years=${generatedYears.join(',')}`,
           {
             headers: { Authorization: `Bearer ${token}` },
           }
@@ -163,7 +163,7 @@ const SubmissionDetailPage = () => {
 
         // Fetch Section C
         const sectionCRes = await axios.get(
-          `http://localhost:5000/api/submit/submissions/section-c?years=${generatedYears.join(',')}`,
+          `https://qae-server.vercel.app/api/submit/submissions/section-c?years=${generatedYears.join(',')}`,
           {
             headers: { Authorization: `Bearer ${token}` },
           }
@@ -292,7 +292,7 @@ const SubmissionDetailPage = () => {
 
         // Fetch Section D
         const sectionDRes = await axios.get(
-          `http://localhost:5000/api/submit/submissions/section-d?years=${generatedYears.join(',')}`,
+          `https://qae-server.vercel.app/api/submit/submissions/section-d?years=${generatedYears.join(',')}`,
           {
             headers: { Authorization: `Bearer ${token}` },
           }
@@ -362,7 +362,7 @@ const SubmissionDetailPage = () => {
 
         // Fetch Section E
         const sectionERes = await axios.get(
-          `http://localhost:5000/api/submit/submissions/section-e?years=${generatedYears.join(',')}`,
+          `https://qae-server.vercel.app/api/submit/submissions/section-e?years=${generatedYears.join(',')}`,
           {
             headers: { Authorization: `Bearer ${token}` },
           }

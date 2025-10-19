@@ -48,7 +48,7 @@ const SectionB = ({ onNext, onBack }) => {
   const fetchYearConfig = async (retryCount = 3, delay = 1000) => {
     try {
       setLoading(true);
-      const response = await axios.get('http://localhost:5000/api/config/year', {
+      const response = await axios.get('https://qae-server.vercel.app/api/config/year', {
         headers: getAuthHeader(),
       });
       console.log('Year Config Response:', response.data); // Debug log
@@ -90,7 +90,7 @@ const SectionB = ({ onNext, onBack }) => {
   const fetchSectionBData = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('http://localhost:5000/api/submit/submissions/section-b', {
+      const response = await axios.get('https://qae-server.vercel.app/api/submit/submissions/section-b', {
         headers: getAuthHeader(),
       });
       console.log('Section B Data Response:', response.data); // Debug log
@@ -294,12 +294,12 @@ const SectionB = ({ onNext, onBack }) => {
       };
 
       try {
-        await axios.put('http://localhost:5000/api/submit/submissions/section-b', payload, {
+        await axios.put('https://qae-server.vercel.app/api/submit/submissions/section-b', payload, {
           headers: getAuthHeader(),
         });
       } catch (putErr) {
         if (putErr.response?.status === 404) {
-          await axios.post('http://localhost:5000/api/submit/submissions/section-b', payload, {
+          await axios.post('https://qae-server.vercel.app/api/submit/submissions/section-b', payload, {
             headers: getAuthHeader(),
           });
         } else {
