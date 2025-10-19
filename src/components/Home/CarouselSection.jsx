@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import Rank2 from '../../assets/rank2.jpg';
-import Rank5 from '../../assets/rank5.png';
-import Rank3 from '../../assets/rank3.jpg';
+import Rank2 from '../../assets/Rank2.jpg';
+import Rank5 from '../../assets/Rank5.png';
+import Rank3 from '../../assets/Rank3.jpg';
 
 const CarouselSection = () => {
   const [currentSlide, setCurrentSlide] = useState(0);
