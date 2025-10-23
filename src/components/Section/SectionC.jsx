@@ -1,5 +1,8 @@
+
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, Loader2 } from "lucide-react";
+import { toast, ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import axios from 'axios';
 
 const SectionC = ({ formData = {}, setFormData, onNext, onBack }) => {
@@ -7,8 +10,6 @@ const SectionC = ({ formData = {}, setFormData, onNext, onBack }) => {
   const [sectionCDriveLink, setSectionCDriveLink] = useState('');
   const [years, setYears] = useState([]);
   const [existingData, setExistingData] = useState(null);
-
-
 
   const token = localStorage.getItem('token');
 
@@ -22,10 +23,10 @@ const SectionC = ({ formData = {}, setFormData, onNext, onBack }) => {
         const yearConfig = yearRes.data;
         const yrs = [yearConfig.p, yearConfig.pMinus1, yearConfig.pMinus2];
         setYears(yrs);
-        
-
+        setLoading(true);
         // Fetch section C data after years are set
-        const sectionRes = await axios.get('https://qae-server.vercel.app/api/submit/submissions/section-c', {
+        const currentYear = new Date().getFullYear();
+        const sectionRes = await axios.get(`https://qae-server.vercel.app/api/submit/submissions/section-c?year=${currentYear}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         const data = sectionRes.data;
@@ -146,9 +147,11 @@ const SectionC = ({ formData = {}, setFormData, onNext, onBack }) => {
             foreignLanguageLink: data.foreignLanguageTraining || '',
           });
           setSectionCDriveLink(data.sectionCDriveLink || '');
+          setLoading(false);
         }
       } catch (error) {
         console.error('Error fetching data:', error);
+        setLoading(false);
       }
     };
     fetchYearConfig();
@@ -156,13 +159,34 @@ const SectionC = ({ formData = {}, setFormData, onNext, onBack }) => {
 
   // Initial data creators
   const createInitialRow = (id, yearObj) => ({ id, department: '', ...yearObj });
-  const initialSpecializationData = years.length ? [1, 2].map(id => createInitialRow(id, years.reduce((acc, y) => ({ ...acc, [y]: { intake: '', filled: '' } }), {}))) : [];
-  const initialFacultyData = years.length ? [1, 2].map(id => ({ id, department: '', intake: '', ...years.reduce((acc, y) => ({ ...acc, [y]: { prof: '', asp: '', ap: '' } }), {}) })) : [];
-  const initialPlacementData = years.length ? [1, 2].map(id => createInitialRow(id, years.reduce((acc, y) => ({ ...acc, [y]: { a: '', b: '', c: '' } }), {}))) : [];
-  const initialPlacementSummaryData = years.length ? [1, 2].map(id => createInitialRow(id, years.reduce((acc, y) => ({ ...acc, [y]: { n: '', x: '' } }), {}))) : [];
-  const initialForeignMouData = [1, 2].map(id => ({ id, university: '', country: '', validUpto: '', link: '' }));
+  const initialSpecializationData = years.length ? [1, 2].map(id => createInitialRow(id, years.reduce((acc, y) => ({ ...acc, [y]: { intake: '', filled: '' } }), {}))) : [
+    { id: 1, department: '', ...years.reduce((acc, y) => ({ ...acc, [y]: { intake: '', filled: '' } }), {}) },
+    { id: 2, department: '', ...years.reduce((acc, y) => ({ ...acc, [y]: { intake: '', filled: '' } }), {}) }
+  ];
+  const initialFacultyData = years.length ? [1, 2].map(id => ({ id, department: '', intake: '', ...years.reduce((acc, y) => ({ ...acc, [y]: { prof: '', asp: '', ap: '' } }), {}) })) : [
+    { id: 1, department: '', intake: '', ...years.reduce((acc, y) => ({ ...acc, [y]: { prof: '', asp: '', ap: '' } }), {}) },
+    { id: 2, department: '', intake: '', ...years.reduce((acc, y) => ({ ...acc, [y]: { prof: '', asp: '', ap: '' } }), {}) }
+  ];
+  const initialPlacementData = years.length ? [1, 2].map(id => createInitialRow(id, years.reduce((acc, y) => ({ ...acc, [y]: { a: '', b: '', c: '' } }), {}))) : [
+    { id: 1, department: '', ...years.reduce((acc, y) => ({ ...acc, [y]: { a: '', b: '', c: '' } }), {}) },
+    { id: 2, department: '', ...years.reduce((acc, y) => ({ ...acc, [y]: { a: '', b: '', c: '' } }), {}) }
+  ];
+  const initialPlacementSummaryData = years.length ? [1, 2].map(id => createInitialRow(id, years.reduce((acc, y) => ({ ...acc, [y]: { n: '', x: '' } }), {}))) : [
+    { id: 1, department: '', ...years.reduce((acc, y) => ({ ...acc, [y]: { n: '', x: '' } }), {}) },
+    { id: 2, department: '', ...years.reduce((acc, y) => ({ ...acc, [y]: { n: '', x: '' } }), {}) }
+  ];
+  const initialForeignMouData = [
+    { id: 1, university: '', country: '', validUpto: '', link: '' },
+    { id: 2, university: '', country: '', validUpto: '', link: '' }
+  ];
   const initialSalaryData = years.reduce((acc, y) => ({ ...acc, [y]: { highest: '', lowest: '', median: '', mean: '' } }), {});
-  const initialStudentContacts = [1, 2].map(id => ({ id, nameAndDept: '', email: '' }));
+  const initialStudentContacts = [
+    { id: 1, nameAndDept: '', email: '' },
+    { id: 2, nameAndDept: '', email: '' },
+    { id: 3, nameAndDept: '', email: '' },
+    { id: 4, nameAndDept: '', email: '' },
+    { id: 5, nameAndDept: '', email: '' }
+  ];
 
   const [specializationData, setSpecializationData] = useState(initialSpecializationData);
   const [facultyData, setFacultyData] = useState(initialFacultyData);
@@ -421,14 +445,15 @@ const SectionC = ({ formData = {}, setFormData, onNext, onBack }) => {
     });
   }, [specializationData, facultyData, phdData, placementData, placementSummaryData, mouData, foreignMouData, additionalAcademicData, otherInfo.hasForeignMous, setFormData]);
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (e) => {
+    e.preventDefault();
     setLoading(true);
     const submitData = {
       admissions: specializationData.flatMap(row => years.map(year => ({
         year,
         departmentName: row.department,
-        intake: row[year]?.intake ? parseInt(row[year].intake) : null, // Convert intake to Int or null
-    filled: row[year]?.filled ? parseInt(row[year].filled) : null,
+        intake: row[year]?.intake ? parseInt(row[year].intake) : null,
+        filled: row[year]?.filled ? parseInt(row[year].filled) : null,
       }))),
       facultyDetails: facultyData.flatMap(row => years.map(year => ({
         year,
@@ -471,12 +496,12 @@ const SectionC = ({ formData = {}, setFormData, onNext, onBack }) => {
         year,
         count: mouData[year] ? parseInt(mouData[year]) : 0,
       })),
-      moUForeignUniversities: foreignMouData.map(fm => ({
-        university: fm.university,
-        country: fm.country,
-        validUpto: fm.validUpto,
-        link: fm.link,
-      })),
+      moUForeignUniversities: otherInfo.hasForeignMous ? foreignMouData.map(fm => ({
+  university: fm.university,
+  country: fm.country,
+  validUpto: fm.validUpto,
+  link: fm.link,
+})) : 'No',
       sectionCDriveLink,
       averageTeachingExperience: additionalAcademicData.avgTeachingExperience,
       noOfCreditsEarned: additionalAcademicData.creditsEarned,
@@ -500,17 +525,14 @@ const SectionC = ({ formData = {}, setFormData, onNext, onBack }) => {
         headers: { Authorization: `Bearer ${token}` },
         data: submitData,
       });
-      alert("Section C submitted successfully");
+      setTimeout(() => {
+        if (onNext) onNext();
+      }, 2000);
+      toast.success('Section C submitted successfully');
     } catch (error) {
-      alert("Failed to submit Section C");
+      toast.error("Failed to submit Section C");
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleNext = () => {
-    if (onNext) {
-      onNext();
     }
   };
 
@@ -520,15 +542,33 @@ const SectionC = ({ formData = {}, setFormData, onNext, onBack }) => {
     }
   };
 
+  // Render fallback UI if years failed to load
   if (!years.length) {
-    return <div>Loading configuration...</div>;
+    return (
+      <div className="fixed inset-0 flex items-center justify-center pb-40">
+        <Loader2 className="w-12 h-12 animate-spin text-teal-500" />
+        <ToastContainer />
+      </div>
+    );
   }
 
   const colorMap = years.reduce((acc, y, i) => ({ ...acc, [y]: ['blue', 'green', 'yellow'][i] }), {});
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-teal-50 to-cyan-50 py-12 px-4">
-      <div className="max-w-7xl mx-auto">
+      <ToastContainer
+        position="top-right"
+        autoClose={5000}
+        hideProgressBar={false}
+        newestOnTop
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        theme="colored"
+      />
+      <form onSubmit={handleSubmit} className="max-w-7xl mx-auto">
         <div className="text-center mb-12">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-teal-600 to-teal-700 rounded-full mb-6 shadow-lg">
             <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -583,6 +623,7 @@ const SectionC = ({ formData = {}, setFormData, onNext, onBack }) => {
                             )}
                             placeholder="Enter department"
                             className="w-full px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500 text-sm"
+                            required
                           />
                         </td>
                         {years.map(year => (
@@ -594,6 +635,7 @@ const SectionC = ({ formData = {}, setFormData, onNext, onBack }) => {
                                 onChange={(e) => handleSpecializationChange(row.id, 'intake', year, e.target.value)}
                                 placeholder="Intake"
                                 className="w-full px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500 text-sm"
+                                required
                               />
                             </td>
                             <td className="py-3 px-2">
@@ -603,6 +645,7 @@ const SectionC = ({ formData = {}, setFormData, onNext, onBack }) => {
                                 onChange={(e) => handleSpecializationChange(row.id, 'filled', year, e.target.value)}
                                 placeholder="Filled"
                                 className="w-full px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500 text-sm"
+                                required
                               />
                             </td>
                             <td className="py-3 px-2">
@@ -643,7 +686,6 @@ const SectionC = ({ formData = {}, setFormData, onNext, onBack }) => {
           <div className="bg-white rounded-2xl shadow-xl border border-teal-100 overflow-hidden">
             <div className="bg-gradient-to-r from-teal-600 to-teal-700 px-8 py-6">
               <h2 className="text-2xl font-bold text-white mb-2">Faculty Details (Permanent Faculty Only)</h2>
-              <p className="text-teal-100 mb-2">V = (3 × Prof + 2 × ASP + 1 × AP) / 2.5</p>
               <p className="text-teal-100 text-sm">Note: Professors and Associate Professors should hold Ph.D. with required experience.</p>
             </div>
             <div className="p-8">
@@ -679,6 +721,7 @@ const SectionC = ({ formData = {}, setFormData, onNext, onBack }) => {
                             onChange={(e) => handleFacultyChange(row.id, 'department', null, e.target.value)}
                             placeholder="Enter department"
                             className="w-full px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500 text-sm"
+                            required
                           />
                         </td>
                         <td className="py-3 px-3 border-r border-gray-200">
@@ -688,6 +731,7 @@ const SectionC = ({ formData = {}, setFormData, onNext, onBack }) => {
                             onChange={(e) => handleFacultyChange(row.id, 'intake', null, e.target.value)}
                             placeholder="Enter intake"
                             className="w-full px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500 text-sm"
+                            required
                           />
                         </td>
                         {years.map(year => (
@@ -699,6 +743,7 @@ const SectionC = ({ formData = {}, setFormData, onNext, onBack }) => {
                                 onChange={(e) => handleFacultyChange(row.id, 'prof', year, e.target.value)}
                                 placeholder="0"
                                 className="w-full px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500 text-sm"
+                                required
                               />
                             </td>
                             <td className="py-3 px-2">
@@ -708,6 +753,7 @@ const SectionC = ({ formData = {}, setFormData, onNext, onBack }) => {
                                 onChange={(e) => handleFacultyChange(row.id, 'asp', year, e.target.value)}
                                 placeholder="0"
                                 className="w-full px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500 text-sm"
+                                required
                               />
                             </td>
                             <td className={`py-3 px-2 border-r border-gray-200`}>
@@ -717,6 +763,7 @@ const SectionC = ({ formData = {}, setFormData, onNext, onBack }) => {
                                 onChange={(e) => handleFacultyChange(row.id, 'ap', year, e.target.value)}
                                 placeholder="0"
                                 className="w-full px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500 text-sm"
+                                required
                               />
                             </td>
                           </React.Fragment>
@@ -755,7 +802,7 @@ const SectionC = ({ formData = {}, setFormData, onNext, onBack }) => {
                         </React.Fragment>
                       ))}
                     </tr>
-                    <tr className="border-b-2 border-gray-300 bg-teal-100">
+                    {/* <tr className="border-b-2 border-gray-300 bg-teal-100">
                       <td colSpan="2" className="py-3 px-4 font-bold text-gray-900 border-r border-gray-200">V</td>
                       <td className="py-3 px-3 border-r border-gray-200"></td>
                       {years.map(year => (
@@ -768,7 +815,7 @@ const SectionC = ({ formData = {}, setFormData, onNext, onBack }) => {
                           />
                         </td>
                       ))}
-                    </tr>
+                    </tr> */}
                   </tbody>
                 </table>
                 <div className="mt-4 flex justify-center space-x-4">
@@ -819,6 +866,7 @@ const SectionC = ({ formData = {}, setFormData, onNext, onBack }) => {
                             onChange={(e) => handlePhdChange(year, 'total', e.target.value)}
                             placeholder="Enter count"
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500"
+                            required
                           />
                         </td>
                         <td className="py-4 px-6">
@@ -828,6 +876,7 @@ const SectionC = ({ formData = {}, setFormData, onNext, onBack }) => {
                             onChange={(e) => handlePhdChange(year, 'phd', e.target.value)}
                             placeholder="Enter count"
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500"
+                            required
                           />
                         </td>
                         <td className="py-4 px-6">
@@ -861,6 +910,7 @@ const SectionC = ({ formData = {}, setFormData, onNext, onBack }) => {
                   onChange={(e) => handleAdditionalAcademicChange('avgTeachingExperience', e.target.value)}
                   placeholder="Enter average years"
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500"
+                  required
                 />
               </div>
               <div>
@@ -873,6 +923,7 @@ const SectionC = ({ formData = {}, setFormData, onNext, onBack }) => {
                   onChange={(e) => handleAdditionalAcademicChange('creditsEarned', e.target.value)}
                   placeholder="Enter number of credits"
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500"
+                  required
                 />
               </div>
               <div>
@@ -885,6 +936,7 @@ const SectionC = ({ formData = {}, setFormData, onNext, onBack }) => {
                   onChange={(e) => handleAdditionalAcademicChange('contactHours', e.target.value)}
                   placeholder="Enter number of contact hours"
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500"
+                  required
                 />
               </div>
               <div>
@@ -897,6 +949,7 @@ const SectionC = ({ formData = {}, setFormData, onNext, onBack }) => {
                   onChange={(e) => handleAdditionalAcademicChange('facultyBelowFeedbackThreshold', e.target.value)}
                   placeholder="Enter number of faculty"
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500"
+                  required
                 />
               </div>
             </div>
@@ -941,6 +994,7 @@ const SectionC = ({ formData = {}, setFormData, onNext, onBack }) => {
                             )}
                             placeholder="Enter department"
                             className="w-full px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500 text-sm"
+                            required
                           />
                         </td>
                         {years.map(year => (
@@ -952,6 +1006,7 @@ const SectionC = ({ formData = {}, setFormData, onNext, onBack }) => {
                                 onChange={(e) => handlePlacementChange(row.id, 'a', year, e.target.value)}
                                 placeholder="Count"
                                 className="w-full px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500 text-sm"
+                                required
                               />
                             </td>
                             <td className="py-3 px-2">
@@ -961,6 +1016,7 @@ const SectionC = ({ formData = {}, setFormData, onNext, onBack }) => {
                                 onChange={(e) => handlePlacementChange(row.id, 'b', year, e.target.value)}
                                 placeholder="Count"
                                 className="w-full px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500 text-sm"
+                                required
                               />
                             </td>
                             <td className="py-3 px-2">
@@ -970,6 +1026,7 @@ const SectionC = ({ formData = {}, setFormData, onNext, onBack }) => {
                                 onChange={(e) => handlePlacementChange(row.id, 'c', year, e.target.value)}
                                 placeholder="Count"
                                 className="w-full px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500 text-sm"
+                                required
                               />
                             </td>
                             <td className={`py-3 px-2 border-r border-gray-200`}>
@@ -1046,6 +1103,7 @@ const SectionC = ({ formData = {}, setFormData, onNext, onBack }) => {
                             )}
                             placeholder="Enter department"
                             className="w-full px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500 text-sm"
+                            required
                           />
                         </td>
                         {years.map(year => (
@@ -1057,6 +1115,7 @@ const SectionC = ({ formData = {}, setFormData, onNext, onBack }) => {
                                 onChange={(e) => handleSummaryChange(row.id, 'n', year, e.target.value)}
                                 placeholder="Count"
                                 className="w-full px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500 text-sm"
+                                required
                               />
                             </td>
                             <td className="py-3 px-2">
@@ -1066,6 +1125,7 @@ const SectionC = ({ formData = {}, setFormData, onNext, onBack }) => {
                                 onChange={(e) => handleSummaryChange(row.id, 'x', year, e.target.value)}
                                 placeholder="Count"
                                 className="w-full px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500 text-sm"
+                                required
                               />
                             </td>
                             <td className={`py-3 px-2 border-r border-gray-200`}>
@@ -1133,6 +1193,7 @@ const SectionC = ({ formData = {}, setFormData, onNext, onBack }) => {
                               onChange={(e) => handleSalaryChange(year, type, e.target.value)}
                               placeholder="Enter amount in ₹"
                               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500"
+                              required
                             />
                           </td>
                         ))}
@@ -1169,6 +1230,7 @@ const SectionC = ({ formData = {}, setFormData, onNext, onBack }) => {
                             onChange={(e) => handleStudentContactChange(row.id, 'nameAndDept', e.target.value)}
                             placeholder="Enter name and department"
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500"
+                            required
                           />
                         </td>
                         <td className="py-4 px-6">
@@ -1178,6 +1240,7 @@ const SectionC = ({ formData = {}, setFormData, onNext, onBack }) => {
                             onChange={(e) => handleStudentContactChange(row.id, 'email', e.target.value)}
                             placeholder="Enter email address"
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500"
+                            required
                           />
                         </td>
                       </tr>
@@ -1192,7 +1255,7 @@ const SectionC = ({ formData = {}, setFormData, onNext, onBack }) => {
                   >
                     + Add more rows
                   </button>
-                  {studentContacts.length > 2 && (
+                  {studentContacts.length > 5 && (
                     <button
                       type="button"
                       onClick={removeStudentContactRow}
@@ -1230,6 +1293,7 @@ const SectionC = ({ formData = {}, setFormData, onNext, onBack }) => {
                             onChange={(e) => handleMouChange(year, e.target.value)}
                             placeholder="Enter count"
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500"
+                            required
                           />
                         </td>
                       </tr>
@@ -1267,6 +1331,7 @@ const SectionC = ({ formData = {}, setFormData, onNext, onBack }) => {
                       checked={otherInfo.implementingNEP === true}
                       onChange={() => handleOtherChange('implementingNEP', true)}
                       className="w-5 h-5 text-teal-600 border-gray-300 focus:ring-teal-500"
+                      required
                     />
                     <label htmlFor="nep_yes" className="text-gray-900 font-medium cursor-pointer">Yes</label>
                   </div>
@@ -1278,6 +1343,7 @@ const SectionC = ({ formData = {}, setFormData, onNext, onBack }) => {
                       checked={otherInfo.implementingNEP === false}
                       onChange={() => handleOtherChange('implementingNEP', false)}
                       className="w-5 h-5 text-teal-600 border-gray-300 focus:ring-teal-500"
+                      required
                     />
                     <label htmlFor="nep_no" className="text-gray-900 font-medium cursor-pointer">No</label>
                   </div>
@@ -1294,6 +1360,7 @@ const SectionC = ({ formData = {}, setFormData, onNext, onBack }) => {
                       checked={otherInfo.implementingMEME === true}
                       onChange={() => handleOtherChange('implementingMEME', true)}
                       className="w-5 h-5 text-teal-600 border-gray-300 focus:ring-teal-500"
+                      required
                     />
                     <label htmlFor="meme_yes" className="text-gray-900 font-medium cursor-pointer">Yes</label>
                   </div>
@@ -1305,6 +1372,7 @@ const SectionC = ({ formData = {}, setFormData, onNext, onBack }) => {
                       checked={otherInfo.implementingMEME === false}
                       onChange={() => handleOtherChange('implementingMEME', false)}
                       className="w-5 h-5 text-teal-600 border-gray-300 focus:ring-teal-500"
+                      required
                     />
                     <label htmlFor="meme_no" className="text-gray-900 font-medium cursor-pointer">No</label>
                   </div>
@@ -1321,6 +1389,7 @@ const SectionC = ({ formData = {}, setFormData, onNext, onBack }) => {
                     onChange={(e) => handleOtherChange('interCollegeCompetitions', e.target.value)}
                     placeholder="Enter number"
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500"
+                    required
                   />
                 </div>
                 <div>
@@ -1333,6 +1402,7 @@ const SectionC = ({ formData = {}, setFormData, onNext, onBack }) => {
                     onChange={(e) => handleOtherChange('intraCollegeCompetitions', e.target.value)}
                     placeholder="Enter number"
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500"
+                    required
                   />
                 </div>
               </div>
@@ -1347,23 +1417,25 @@ const SectionC = ({ formData = {}, setFormData, onNext, onBack }) => {
                     onChange={(e) => handleOtherChange('noOfClubs', e.target.value)}
                     placeholder="Enter number"
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500"
+                    required
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-900 mb-2">
-                    Availability of Mentor-Mentee System (if yes, provide ratio)
+                    Mentor-Mentee System Details
                   </label>
                   <input
                     type="text"
                     value={otherInfo.mentorMenteeSystem}
                     onChange={(e) => handleOtherChange('mentorMenteeSystem', e.target.value)}
-                    placeholder="Enter ratio (e.g., 1:20)"
+                    placeholder="Enter details"
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500"
+                    required
                   />
                 </div>
               </div>
-              <div className="border-t border-gray-200 pt-8">
-                <label className="block text-lg font-semibold text-gray-900 mb-4">Availability of Student Counsellor (Not in faculty roll)</label>
+              <div>
+                <label className="block text-lg font-semibold text-gray-900 mb-4">Do you have a student counsellor?</label>
                 <div className="flex space-x-6">
                   <div className="flex items-center space-x-3">
                     <input
@@ -1373,6 +1445,7 @@ const SectionC = ({ formData = {}, setFormData, onNext, onBack }) => {
                       checked={otherInfo.studentCounsellor === true}
                       onChange={() => handleOtherChange('studentCounsellor', true)}
                       className="w-5 h-5 text-teal-600 border-gray-300 focus:ring-teal-500"
+                      required
                     />
                     <label htmlFor="counsellor_yes" className="text-gray-900 font-medium cursor-pointer">Yes</label>
                   </div>
@@ -1384,6 +1457,7 @@ const SectionC = ({ formData = {}, setFormData, onNext, onBack }) => {
                       checked={otherInfo.studentCounsellor === false}
                       onChange={() => handleOtherChange('studentCounsellor', false)}
                       className="w-5 h-5 text-teal-600 border-gray-300 focus:ring-teal-500"
+                      required
                     />
                     <label htmlFor="counsellor_no" className="text-gray-900 font-medium cursor-pointer">No</label>
                   </div>
@@ -1391,217 +1465,216 @@ const SectionC = ({ formData = {}, setFormData, onNext, onBack }) => {
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-900 mb-2">
-                  Number of programs conducted for students/faculty (Yoga, Emotional Intelligence, Stress Management, Ethics)
+                  Number of programs conducted to promote holistic development of students
                 </label>
                 <input
-                  type="text"
+                  type="number"
                   value={otherInfo.noOfProgramsConducted}
                   onChange={(e) => handleOtherChange('noOfProgramsConducted', e.target.value)}
-                  placeholder="Enter number and link"
+                  placeholder="Enter number"
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500"
+                  required
                 />
               </div>
+              <div>
+  <label className="block text-lg font-semibold text-gray-900 mb-4">Does your institute have MoUs with foreign universities?</label>
+  <div className="flex space-x-6">
+    <div className="flex items-center space-x-3">
+      <input
+        type="radio"
+        id="foreign_mou_yes"
+        name="foreign_mou"
+        checked={otherInfo.hasForeignMous === true}
+        onChange={() => handleOtherChange('hasForeignMous', true)}
+        className="w-5 h-5 text-teal-600 border-gray-300 focus:ring-teal-500"
+        required
+      />
+      <label htmlFor="foreign_mou_yes" className="text-gray-900 font-medium cursor-pointer">Yes</label>
+    </div>
+    <div className="flex items-center space-x-3">
+      <input
+        type="radio"
+        id="foreign_mou_no"
+        name="foreign_mou"
+        checked={otherInfo.hasForeignMous === false}
+        onChange={() => handleOtherChange('hasForeignMous', false)}
+        className="w-5 h-5 text-teal-600 border-gray-300 focus:ring-teal-500"
+        required
+      />
+      <label htmlFor="foreign_mou_no" className="text-gray-900 font-medium cursor-pointer">No</label>
+    </div>
+  </div>
+</div>
+{otherInfo.hasForeignMous && (
+  <div className="border-t border-gray-200 pt-8">
+    <h3 className="text-lg font-semibold text-gray-900 mb-4">Details of MoUs with Foreign Universities</h3>
+    <div className="overflow-x-auto">
+      <table className="w-full border-collapse">
+        <thead>
+          <tr className="border-b-2 border-gray-200">
+            <th className="text-center py-4 px-4 font-semibold text-gray-900 bg-gray-50">Sl.No</th>
+            <th className="text-left py-4 px-6 font-semibold text-gray-900 bg-gray-50">University</th>
+            <th className="text-left py-4 px-6 font-semibold text-gray-900 bg-gray-50">Country</th>
+            <th className="text-left py-4 px-6 font-semibold text-gray-900 bg-gray-50">Valid Upto</th>
+            <th className="text-left py-4 px-6 font-semibold text-gray-900 bg-gray-50">Link</th>
+          </tr>
+        </thead>
+        <tbody>
+          {foreignMouData.map(row => (
+            <tr key={row.id} className="border-b border-gray-200 hover:bg-gray-50 transition-colors">
+              <td className="py-4 px-4 text-center font-medium text-gray-900">{row.id}</td>
+              <td className="py-4 px-6">
+                <input
+                  type="text"
+                  value={row.university}
+                  onChange={(e) => handleForeignMouChange(row.id, 'university', e.target.value)}
+                  placeholder="Enter university name"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500"
+                  required
+                />
+              </td>
+              <td className="py-4 px-6">
+                <input
+                  type="text"
+                  value={row.country}
+                  onChange={(e) => handleForeignMouChange(row.id, 'country', e.target.value)}
+                  placeholder="Enter country"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500"
+                  required
+                />
+              </td>
+              <td className="py-4 px-6">
+                <input
+                  type="date"
+                  value={row.validUpto}
+                  onChange={(e) => handleForeignMouChange(row.id, 'validUpto', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900"
+                  required
+                />
+              </td>
+              <td className="py-4 px-6">
+                <input
+                  type="url"
+                  value={row.link}
+                  onChange={(e) => handleForeignMouChange(row.id, 'link', e.target.value)}
+                  placeholder="Enter link"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500"
+                  required
+                />
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <div className="mt-4 flex justify-center space-x-4">
+        <button
+          type="button"
+          onClick={addForeignMouRow}
+          className="text-teal-600 hover:text-teal-700 font-medium transition-colors"
+        >
+          + Add more rows
+        </button>
+        {foreignMouData.length > 2 && (
+          <button
+            type="button"
+            onClick={removeForeignMouRow}
+            className="text-red-600 hover:text-red-700 font-medium transition-colors"
+          >
+            - Remove last row
+          </button>
+        )}
+      </div>
+    </div>
+  </div>
+)}
               <div className="border-t border-gray-200 pt-8">
-                <label className="block text-lg font-semibold text-gray-900 mb-4">Does your institute have MoUs with Foreign Universities?</label>
-                <div className="flex space-x-6 mb-4">
+                <label className="block text-lg font-semibold text-gray-900 mb-4">Does your institute provide foreign language training?</label>
+                <div className="flex space-x-6">
                   <div className="flex items-center space-x-3">
                     <input
                       type="radio"
-                      id="foreign_mou_yes"
-                      name="foreign_mou"
-                      checked={otherInfo.hasForeignMous === true}
-                      onChange={() => handleOtherChange('hasForeignMous', true)}
-                      className="w-5 h-5 text-teal-600 border-gray-300 focus:ring-teal-500"
-                    />
-                    <label htmlFor="foreign_mou_yes" className="text-gray-900 font-medium cursor-pointer">Yes</label>
-                  </div>
-                  <div className="flex items-center space-x-3">
-                    <input
-                      type="radio"
-                      id="foreign_mou_no"
-                      name="foreign_mou"
-                      checked={otherInfo.hasForeignMous === false}
-                      onChange={() => handleOtherChange('hasForeignMous', false)}
-                      className="w-5 h-5 text-teal-600 border-gray-300 focus:ring-teal-500"
-                    />
-                    <label htmlFor="foreign_mou_no" className="text-gray-900 font-medium cursor-pointer">No</label>
-                  </div>
-                </div>
-                {otherInfo.hasForeignMous && (
-                  <div className="overflow-x-auto">
-                    <table className="w-full border-collapse">
-                      <thead>
-                        <tr className="border-b-2 border-gray-200">
-                          <th className="text-center py-3 px-4 font-semibold text-gray-900 bg-gray-50">Sl.No</th>
-                          <th className="text-left py-3 px-6 font-semibold text-gray-900 bg-gray-50">Name of the University</th>
-                          <th className="text-left py-3 px-6 font-semibold text-gray-900 bg-gray-50">Name of the Country</th>
-                          <th className="text-left py-3 px-6 font-semibold text-gray-900 bg-gray-50">Valid Upto</th>
-                          <th className="text-left py-3 px-6 font-semibold text-gray-900 bg-gray-50">Link</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {foreignMouData.map(row => (
-                          <tr key={row.id} className="border-b border-gray-200 hover:bg-gray-50 transition-colors">
-                            <td className="py-3 px-4 text-center font-medium text-gray-900">{row.id}</td>
-                            <td className="py-3 px-6">
-                              <input
-                                type="text"
-                                value={row.university}
-                                onChange={(e) => handleForeignMouChange(row.id, 'university', e.target.value)}
-                                placeholder="Enter university"
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500"
-                              />
-                            </td>
-                            <td className="py-3 px-6">
-                              <input
-                                type="text"
-                                value={row.country}
-                                onChange={(e) => handleForeignMouChange(row.id, 'country', e.target.value)}
-                                placeholder="Enter country"
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500"
-                              />
-                            </td>
-                            <td className="py-3 px-6">
-                              <input
-                                type="date"
-                                value={row.validUpto}
-                                onChange={(e) => handleForeignMouChange(row.id, 'validUpto', e.target.value)}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900"
-                              />
-                            </td>
-                            <td className="py-3 px-6">
-                              <input
-                                type="text"
-                                value={row.link}
-                                onChange={(e) => handleForeignMouChange(row.id, 'link', e.target.value)}
-                                placeholder="Enter link"
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500"
-                              />
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                    <div className="mt-4 flex justify-center space-x-4">
-                      <button
-                        type="button"
-                        onClick={addForeignMouRow}
-                        className="text-teal-600 hover:text-teal-700 font-medium transition-colors"
-                      >
-                        + Add more rows
-                      </button>
-                      {foreignMouData.length > 2 && (
-                        <button
-                          type="button"
-                          onClick={removeForeignMouRow}
-                          className="text-red-600 hover:text-red-700 font-medium transition-colors"
-                        >
-                          - Remove last row
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-              <div className="border-t border-gray-200 pt-8">
-                <label className="block text-lg font-semibold text-gray-900 mb-4">Availability of foreign language training to students</label>
-                <div className="flex space-x-6 mb-4">
-                  <div className="flex items-center space-x-3">
-                    <input
-                      type="radio"
-                      id="language_yes"
-                      name="language"
+                      id="language_training_yes"
+                      name="language_training"
                       checked={otherInfo.hasLanguageTraining === true}
                       onChange={() => handleOtherChange('hasLanguageTraining', true)}
                       className="w-5 h-5 text-teal-600 border-gray-300 focus:ring-teal-500"
+                      required
                     />
-                    <label htmlFor="language_yes" className="text-gray-900 font-medium cursor-pointer">Yes</label>
+                    <label htmlFor="language_training_yes" className="text-gray-900 font-medium cursor-pointer">Yes</label>
                   </div>
                   <div className="flex items-center space-x-3">
                     <input
                       type="radio"
-                      id="language_no"
-                      name="language"
+                      id="language_training_no"
+                      name="language_training"
                       checked={otherInfo.hasLanguageTraining === false}
                       onChange={() => handleOtherChange('hasLanguageTraining', false)}
                       className="w-5 h-5 text-teal-600 border-gray-300 focus:ring-teal-500"
+                      required
                     />
-                    <label htmlFor="language_no" className="text-gray-900 font-medium cursor-pointer">No</label>
+                    <label htmlFor="language_training_no" className="text-gray-900 font-medium cursor-pointer">No</label>
                   </div>
                 </div>
-                {otherInfo.hasLanguageTraining && (
+              </div>
+              {otherInfo.hasLanguageTraining && (
+                <div>
+                  <label className="block text-sm font-semibold text-gray-900 mb-2">
+                    Link to foreign language training details
+                  </label>
                   <input
-                    type="text"
+                    type="url"
                     value={otherInfo.foreignLanguageLink}
                     onChange={(e) => handleOtherChange('foreignLanguageLink', e.target.value)}
-                    placeholder="Enter link for certification details"
+                    placeholder="Enter link"
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500"
+                    required
                   />
-                )}
-              </div>
-            </div>
-          </div>
-          <div className="bg-white rounded-2xl shadow-xl border border-teal-100 p-8">
-            <label className="block text-sm font-semibold text-gray-900 mb-2">
-              Section C Drive Link (for verification)
-            </label>
-            <input
-              type="text"
-              value={sectionCDriveLink}
-              onChange={(e) => setSectionCDriveLink(e.target.value)}
-              placeholder="Enter Google Drive link"
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500"
-            />
-          </div>
-          <div className="flex justify-between items-center pt-8">
-            {onBack && (
-              <button
-                type="button"
-                className="flex items-center bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-3 px-6 rounded-lg transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2"
-                onClick={handleBack}
-              >
-                <ChevronLeft className="w-5 h-5 mr-2" />
-                Back to Section B
-              </button>
-            )}
-            <div className="flex space-x-4 ml-auto">
-              <button
-                type="button"
-                className="bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-700 hover:to-teal-800 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-200 transform hover:scale-105 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
-                disabled={loading}
-                onClick={handleSubmit}
-              >
-                {loading ? (
-                  <div className="flex items-center">
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                    Saving...
-                  </div>
-                ) : (
-                  "Save Section C"
-                )}
-              </button>
-              {onNext && (
-                <button
-                  type="button"
-                  className="flex items-center bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-700 hover:to-teal-800 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-200 transform hover:scale-105 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                  onClick={handleNext}
-                >
-                  Continue to Section D
-                  <ChevronRight className="w-5 h-5 ml-2" />
-                </button>
+                </div>
               )}
             </div>
           </div>
-          <div className="text-center mt-12 pt-8 border-t border-teal-200">
-            <p className="text-gray-600">
-              Need help? Contact our support team at{" "}
-              <a href="mailto:founderqae@gmail.com" className="text-teal-600 hover:text-teal-700 font-medium">
-                founderqae@gmail.com
-              </a>
-            </p>
+          <div className="bg-white rounded-2xl shadow-xl border border-teal-100 overflow-hidden">
+            <div className="bg-gradient-to-r from-teal-600 to-teal-700 px-8 py-6">
+              <h2 className="text-2xl font-bold text-white mb-2">Google Drive Link for Section C</h2>
+              <p className="text-teal-100">Provide a Google Drive link containing relevant documents for Section C.</p>
+            </div>
+            <div className="p-8">
+              <input
+                type="url"
+                value={sectionCDriveLink}
+                onChange={(e) => setSectionCDriveLink(e.target.value)}
+                placeholder="Enter Google Drive link"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500"
+                required
+              />
+            </div>
+          </div>
+          <div className="flex justify-between mt-8">
+            <button
+              type="button"
+              onClick={handleBack}
+              className="inline-flex items-center px-6 py-3 bg-gray-600 text-white font-semibold rounded-lg hover:bg-gray-700 transition-colors shadow-md"
+            >
+              <ChevronLeft className="w-5 h-5 mr-2" />
+              Back to Section B
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className={`inline-flex items-center px-6 py-3 bg-teal-600 text-white font-semibold rounded-lg hover:bg-teal-700 transition-colors shadow-md ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                'Save and Continue to Section D'
+              )}
+            </button>
           </div>
         </div>
-      </div>
+      </form>
     </div>
   );
 };

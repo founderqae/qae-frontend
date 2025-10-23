@@ -52,40 +52,45 @@ const SubmissionDetailPage = () => {
           sectionE: generatedYears,
         });
 
-        // Fetch institute data for Section A (general information)
-        const instituteRes = await axios.get('https://qae-server.vercel.app/api/institution/institutes', {
+        // Fetch Section A (general information)
+        const sectionARes = await axios.get(`https://qae-server.vercel.app/api/section-a?year=${inputYear}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
-        const institute = instituteRes.data;
+        const { sectionA, submissionId: sectionASubmissionId, status, sectionACompleted } = sectionARes.data;
 
-        const sectionA = {
-          institutionName: institute.name,
-          yearEstablished: institute.yearEstablished,
-          address: institute.address,
-          pincode: institute.pinCode,
-          state: institute.state,
-          website: institute.website,
-          headName: institute.headName,
-          instituteType: institute.ownership,
-          instituteCategory: institute.category,
-          affiliatedUniversity: institute.affiliatedUniversity,
-          aicteApprovalNo: institute.aicteApproval,
-          aicteDate: institute.aicteApproval,
-          nbaAccredited: institute.nbaAccredited ? 'Yes' : 'No',
-          nbaValidityDate: institute.nbaAccredited,
-          naacAccredited: institute.naacAccredited ? 'Yes' : 'No',
-          naacScore: institute.naacScore,
-          naacValidityDate: institute.naacValidity,
-          otherAccreditation: institute.otherAccreditations,
-          applicantName: institute.applicantName,
-          applicantDesignation: institute.applicantDesignation,
-          applicantContact: institute.applicantContact,
-          applicantEmail: institute.applicantEmail,
+        // if (!sectionACompleted) {
+        //   throw new Error('Section A is not completed yet');
+        // }
+
+        const sectionAData = {
+          institutionName: sectionA.name,
+          yearEstablished: sectionA.yearEstablished,
+          address: sectionA.address,
+          pincode: sectionA.pinCode,
+          state: sectionA.state,
+          website: sectionA.website,
+          headName: sectionA.headName,
+          instituteType: sectionA.ownership,
+          instituteCategory: sectionA.category,
+          affiliatedUniversity: sectionA.affiliatedUniversity,
+          aicteApprovalNo: sectionA.aicteApproval,
+          aicteDate: sectionA.aicteApproval ? new Date(sectionA.aicteApproval).toLocaleDateString('en-US') : 'N/A',
+          nbaAccredited: sectionA.nbaAccredited ? 'Yes' : 'No',
+          nbaValidityDate: sectionA.nbaAccredited ? new Date(sectionA.nbaAccredited).toLocaleDateString('en-US') : 'N/A',
+          naacAccredited: sectionA.naacScore ? 'Yes' : 'No',
+          naacScore: sectionA.naacScore || 'N/A',
+          naacValidityDate: sectionA.naacValidity ? new Date(sectionA.naacValidity).toLocaleDateString('en-US') : 'N/A',
+          otherAccreditation: sectionA.otherAccreditations || 'None',
+          applicantName: sectionA.applicantName,
+          applicantDesignation: sectionA.applicantDesignation,
+          applicantContact: sectionA.applicantContact,
+          applicantEmail: sectionA.applicantEmail,
+          field: sectionA.field,
         };
 
         // Fetch Section B
         const sectionBRes = await axios.get(
-          `https://qae-server.vercel.app/api/submit/submissions/section-b?years=${generatedYears.join(',')}`,
+          `https://qae-server.vercel.app/api/submit/submissions/section-b?years=${inputYear}`,
           {
             headers: { Authorization: `Bearer ${token}` },
           }
@@ -150,6 +155,7 @@ const SubmissionDetailPage = () => {
 
         const finance = sectionB.financeInfos[0] || {};
         const sectionBData = {
+          sectionBDriveLink: sectionB.sectionBDriveLink,
           genderInfo,
           diversityInfo,
           examScores,
@@ -163,7 +169,7 @@ const SubmissionDetailPage = () => {
 
         // Fetch Section C
         const sectionCRes = await axios.get(
-          `https://qae-server.vercel.app/api/submit/submissions/section-c?years=${generatedYears.join(',')}`,
+          `https://qae-server.vercel.app/api/submit/submissions/section-c?years=${inputYear}`,
           {
             headers: { Authorization: `Bearer ${token}` },
           }
@@ -224,6 +230,7 @@ const SubmissionDetailPage = () => {
           sumMap[sc.departmentName][sc.year] = {
             n: sc.n,
             x: sc.x,
+            percentage: sc.n > 0 ? (sc.x / sc.n * 100).toFixed(2) : '0.00'
           };
         });
         const placementSummary = Object.values(sumMap);
@@ -264,6 +271,7 @@ const SubmissionDetailPage = () => {
         }));
 
         const sectionCData = {
+          sectionCDriveLink: sectionC.sectionCDriveLink,
           specialization,
           facultyDetails,
           phdHolders,
@@ -290,79 +298,138 @@ const SubmissionDetailPage = () => {
           foreignLanguageCertLink: sectionC.foreignLanguageTraining,
         };
 
-        // Fetch Section D
-        const sectionDRes = await axios.get(
-          `https://qae-server.vercel.app/api/submit/submissions/section-d?years=${generatedYears.join(',')}`,
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
-        );
-        const sectionD = sectionDRes.data;
+        // Fetch Section D - UPDATED
+const sectionDRes = await axios.get(
+  `https://qae-server.vercel.app/api/submit/submissions/section-d?years=${inputYear}`,
+  {
+    headers: { Authorization: `Bearer ${token}` },
+  }
+);
+const sectionD = sectionDRes.data;
 
-        const departmentLibrary = sectionD.departmentLibraries.map((dl, idx) => ({
-          department: dl.department,
-          volumes: dl.volumes,
-        }));
+// Process Section D data to match backend response structure
+const departmentLibrary = sectionD.departmentLibraries?.map((dl, idx) => ({
+  department: dl.department || dl.departmentName || '',
+  volumes: dl.noVolumes || dl.volumes || '',
+})) || [];
 
-        const hostelDetails = [
-          { type: 'Boys', rooms: sectionD.hostels.boys.noRooms, capacity: sectionD.hostels.boys.capacity, occupied: sectionD.hostels.boys.occupied },
-          { type: 'Girls', rooms: sectionD.hostels.girls.noRooms, capacity: sectionD.hostels.girls.capacity, occupied: sectionD.hostels.girls.occupied },
-        ];
+const hostelDetails = [
+  { 
+    type: 'Boys', 
+    rooms: sectionD.hostels?.boys?.noRooms || sectionD.hostels?.boys?.capacity || 0, 
+    capacity: sectionD.hostels?.boys?.capacity || 0, 
+    occupied: sectionD.hostels?.boys?.occupied || 0 
+  },
+  { 
+    type: 'Girls', 
+    rooms: sectionD.hostels?.girls?.noRooms || sectionD.hostels?.girls?.capacity || 0, 
+    capacity: sectionD.hostels?.girls?.capacity || 0, 
+    occupied: sectionD.hostels?.girls?.occupied || 0 
+  },
+  { 
+    type: 'Total', 
+    rooms: sectionD.hostels?.total?.noRooms || 0,
+    capacity: sectionD.hostels?.total?.capacity || 0,
+    occupied: sectionD.hostels?.total?.occupied || 0
+  }
+].filter(h => h.rooms > 0 || h.capacity > 0 || h.occupied > 0); // Only show if data exists
 
-        const sportsFacilities = sectionD.sportsFacilities.map((sf, idx) => ({
-          facility: sf.particular,
-          area: sf.area + ' sq.ft',
-        }));
+const sportsFacilities = sectionD.sportsFacilities?.map((sf) => ({
+  id: sf.id || '',
+  particular: sf.particular,
+  area: typeof sf.area === 'number' ? sf.area.toFixed(2) : sf.area || '',
+})) || [];
 
-        const sectionDData = {
-          campusArea: sectionD.campusArea,
-          builtUpArea: sectionD.totalBuiltUpArea,
-          classrooms: sectionD.noClassrooms,
-          laboratories: sectionD.noLaboratories,
-          facultyCabins: sectionD.noFacultyCabins,
-          conferenceHalls: sectionD.noConferenceHalls,
-          auditoriums: sectionD.noAuditoriums,
-          studentComputerRatio: sectionD.studentComputerRatio,
-          stpPlant: sectionD.hasSTP ? 'Yes' : 'No',
-          stpOutcome: sectionD.stpDetails,
-          wasteDisposalMoU: sectionD.moUWasteDisposal ? 'Yes' : 'No',
-          nss: sectionD.hasNSS ? 'Yes' : 'No',
-          ncc: sectionD.hasNCC ? 'Yes' : 'No',
-          cellsCommittees: Array.isArray(sectionD.cellsCommittees) ? sectionD.cellsCommittees : [], // Normalize to array
-          atm: sectionD.hasATM ? 'Yes' : 'No',
-          wifi: sectionD.hasWiFi ? 'Yes - ' + sectionD.wifiDetails : 'No',
-          iqac: sectionD.hasIQAC ? 'Yes' : 'No',
-          iqacEstablished: sectionD.iqacEstablishmentDate ? sectionD.iqacEstablishmentDate.split('T')[0] : '',
-          centralLibrary: sectionD.centralLibraryArea,
-          booksVolumes: sectionD.noVolumes,
-          booksAddedLastThreeYears: sectionD.noBooksAddedLast3,
-          printedJournals: sectionD.noPrintedJournals,
-          onlineJournals: sectionD.noOnlineJournals,
-          avgFacultyVisitsPerMonth: sectionD.avgFacultyVisitsPerMonth,
-          avgStudentVisitsPerMonth: sectionD.avgStudentVisitsPerMonth,
-          digitalLibrary: sectionD.hasDigitalLibrary ? 'Yes' : 'No',
-          departmentLibrary,
-          hostelDetails,
-          facultyQuarters: {
-            quarters: sectionD.facultyQuarters.noQuarters,
-            occupied: sectionD.facultyQuarters.occupied,
-          },
-          guestRooms: sectionD.guestRooms.guestRooms,
-          boysCommonRooms: sectionD.guestRooms.commonBoys,
-          girlsCommonRooms: sectionD.guestRooms.commonGirls,
-          medicalFacilities: {
-            registeredPractitioner: sectionD.medicalFacilities.registeredPractitioner ? 'Yes' : 'No',
-            nursingAssistant: sectionD.medicalFacilities.nursingAssistant ? 'Yes' : 'No',
-            emergencyMedicines: sectionD.medicalFacilities.emergencyMedicines ? 'Yes' : 'No',
-          },
-          solarPower: sectionD.hasSolar ? 'Yes' : 'No',
-          sustainableDevelopment: sectionD.hasSustainability ? 'Yes' : 'No',
-          sportsFacilities,
-        };
+const sectionDData = {
+  sectionDDriveLink: sectionD.sectionDDriveLink || 'N/A',
+  status: sectionD.status || 'N/A',
+  sectionDCompleted: sectionD.sectionDCompleted || false,
+  
+  // General Infrastructure
+  campusArea: sectionD.campusArea ? Number(sectionD.campusArea).toLocaleString('en-IN') + ' sq.ft' : 'N/A',
+  builtUpArea: sectionD.totalBuiltUpArea ? Number(sectionD.totalBuiltUpArea).toLocaleString('en-IN') + ' sq.ft' : 'N/A',
+  classrooms: sectionD.noClassrooms || 'N/A',
+  laboratories: sectionD.noLaboratories || 'N/A',
+  facultyCabins: sectionD.noFacultyCabins || 'N/A',
+  conferenceHalls: sectionD.noConferenceHalls || 'N/A',
+  auditoriums: sectionD.noAuditoriums || 'N/A',
+  studentComputerRatio: sectionD.studentComputerRatio || 'N/A',
+  
+  // Facilities
+  stpPlant: sectionD.hasSTP === 'yes' || sectionD.stpPlant === 'Yes' ? 'Yes' : 'No',
+  stpOutcome: (sectionD.hasSTP === 'yes' || sectionD.stpPlant === 'Yes') ? (sectionD.stpDetails || sectionD.stpPlant || 'N/A') : 'N/A',
+  wasteDisposalMoU: sectionD.moUWasteDisposal === 'yes' || sectionD.moUWasteDisposal === true ? 'Yes' : 'No',
+  nss: sectionD.hasNSS === 'yes' || sectionD.hasNSS === true ? 'Yes' : 'No',
+  ncc: sectionD.hasNCC === 'yes' || sectionD.hasNCC === true ? 'Yes' : 'No',
+  cellsCommittees: sectionD.cellsCommittees || 'N/A',
+  atm: sectionD.hasATM === 'yes' || sectionD.hasATM === true ? 'Yes' : 'No',
+  wifi: (sectionD.hasWiFi === 'yes' || sectionD.hasWiFi === true || sectionD.hasWifi === 'Yes') ? 'Yes' : 'No',
+  wifiDetails: sectionD.hasWiFi === 'yes' || sectionD.hasWifi === 'Yes' ? (sectionD.wifiDetails || sectionD.hasWifi || 'N/A') : 'N/A',
+  iqac: sectionD.hasIQAC === 'yes' || sectionD.hasIQAC ? 'Yes' : 'No',
+  iqacEstablished: sectionD.iqacEstablishmentDate || sectionD.hasIQAC ? 
+    (typeof sectionD.iqacEstablishmentDate === 'string' ? 
+      sectionD.iqacEstablishmentDate.split('T')[0] : 
+      new Date(sectionD.iqacEstablishmentDate).toLocaleDateString('en-US')
+    ) : 'N/A',
+  
+  // Library
+  centralLibrary: sectionD.centralLibraryArea ? Number(sectionD.centralLibraryArea).toLocaleString('en-IN') + ' sq.ft' : 'N/A',
+  booksVolumes: sectionD.noVolumes ? Number(sectionD.noVolumes).toLocaleString('en-IN') : 'N/A',
+  booksAddedLastThreeYears: sectionD.noBooksAddedLast3 ? Number(sectionD.noBooksAddedLast3).toLocaleString('en-IN') : 'N/A',
+  printedJournals: sectionD.noPrintedJournals ? Number(sectionD.noPrintedJournals).toLocaleString('en-IN') : 'N/A',
+  onlineJournals: sectionD.noOnlineJournals ? Number(sectionD.noOnlineJournals).toLocaleString('en-IN') : 'N/A',
+  avgFacultyVisitsPerMonth: sectionD.avgFacultyVisitsPerMonth ? Number(sectionD.avgFacultyVisitsPerMonth).toLocaleString('en-IN') : 'N/A',
+  avgStudentVisitsPerMonth: sectionD.avgStudentVisitsPerMonth ? Number(sectionD.avgStudentVisitsPerMonth).toLocaleString('en-IN') : 'N/A',
+  digitalLibrary: sectionD.hasDigitalLibrary === 'yes' || sectionD.digitalLibrary === true ? 'Yes' : 'No',
+  
+  // Department Libraries
+  hasDeptLibrary: sectionD.hasDeptLibrary === 'yes' || departmentLibrary.length > 0 ? 'Yes' : 'No',
+  departmentLibrary,
+  
+  // Hostel
+  hasHostel: sectionD.hasHostel === 'yes' || hostelDetails.length > 0 ? 'Yes' : 'No',
+  hostelDetails,
+  
+  // Faculty Quarters
+ hasFacultyQuarters: sectionD.hasFacultyQuarters === 'yes' || (sectionD.facultyQuarters && Object.keys(sectionD.facultyQuarters).length > 0) ? 'Yes' : 'No',
+  facultyQuarters: sectionD.facultyQuarters && Object.keys(sectionD.facultyQuarters).length > 0 ? {
+    quarters: sectionD.facultyQuarters.noQuarters || 0,
+    occupied: sectionD.facultyQuarters.occupied || 0,
+  } : { quarters: 0, occupied: 0 },
+  
+  // Guest Rooms
+  guestRooms: {
+    guestRooms: sectionD.guestRooms?.guestRooms || sectionD.guestRooms?.noGuestRooms || 0,
+    commonBoys: sectionD.guestRooms?.commonBoys || 0,
+    commonGirls: sectionD.guestRooms?.commonGirls || 0,
+  },
+  
+  // Medical Facilities
+  medicalFacilities: {
+    registeredPractitioner: (sectionD.medicalFacilities?.registeredPractitioner === 'yes' || 
+                           sectionD.medicalFacilities?.registeredPractitioner === true) ? 'Yes' : 'No',
+    nursingAssistant: (sectionD.medicalFacilities?.nursingAssistant === 'yes' || 
+                      sectionD.medicalFacilities?.nursingAssistant === true) ? 'Yes' : 'No',
+    emergencyMedicines: (sectionD.medicalFacilities?.emergencyMedicines === 'yes' || 
+                        sectionD.medicalFacilities?.emergencyMedicines === true) ? 'Yes' : 'No',
+  },
+  
+  // Sustainability
+  solarPower: sectionD.hasSolar === 'yes' || sectionD.solarPower === 'Yes' ? 'Yes' : 'No',
+  solarDetails: sectionD.hasSolar === 'yes' || sectionD.solarPower === 'Yes' ? 
+    (sectionD.solarDetails || sectionD.solarPower || 'N/A') : 'N/A',
+  sustainableDevelopment: sectionD.hasSustainability === 'yes' || sectionD.sustainableDevelopment === 'Yes' ? 'Yes' : 'No',
+  sustainabilityDetails: sectionD.hasSustainability === 'yes' || sectionD.sustainableDevelopment === 'Yes' ? 
+    (sectionD.sustainabilityDetails || sectionD.sustainableDevelopment || 'N/A') : 'N/A',
+  
+  // Sports
+  hasSportsFacilities: sectionD.hasSportsFacilities === 'yes' || sportsFacilities.length > 0 ? 'Yes' : 'No',
+  sportsFacilities,
+};
 
         // Fetch Section E
         const sectionERes = await axios.get(
-          `https://qae-server.vercel.app/api/submit/submissions/section-e?years=${generatedYears.join(',')}`,
+          `https://qae-server.vercel.app/api/submit/submissions/section-e?years=${inputYear}`,
           {
             headers: { Authorization: `Bearer ${token}` },
           }
@@ -451,6 +518,7 @@ const SubmissionDetailPage = () => {
         ];
 
         const sectionEData = {
+          sectionEDriveLink: sectionE.sectionEDriveLink,
           journalPublications,
           conferencePublications,
           patents,
@@ -463,8 +531,8 @@ const SubmissionDetailPage = () => {
 
         // Combine into submissionData
         const fetchedSubmissionData = {
-          id: submissionId || sectionB.submissionId || sectionC.submissionId || sectionD.submissionId || sectionE.submissionId,
-          collegeName: sectionA.institutionName,
+          id: sectionASubmissionId,
+          collegeName: sectionAData.institutionName,
           submittedAt: sectionB.submittedAt || 'N/A',
           isPaid: sectionB.isPaid || false,
           sectionA,
@@ -564,7 +632,7 @@ const SubmissionDetailPage = () => {
             >
               <ArrowLeft className="w-5 h-5 text-teal-700" />
             </button>
-            <span className="text-teal-700 text-sm font-medium">back to submissions</span>
+            <span className="text-teal-700 text-sm font-medium">Back to Submissions</span>
           </div>
 
           {/* Main Header */}
@@ -572,7 +640,7 @@ const SubmissionDetailPage = () => {
             <div className="flex items-start justify-between">
               <div>
                 <h1 className="text-3xl font-bold text-white mb-2">{submissionData.collegeName}</h1>
-                <p className="text-teal-50 text-sm">Submission ID: {submissionData.id} | Submitted: {submissionData.submittedAt}</p>
+                <p className="text-teal-50 text-sm">Submission ID: {submissionData.id} | Submitted: {submissionData.submittedAt} | Status: {submissionData.status}</p>
               </div>
               <button
                 onClick={() => generateSubmissionPDF(submissionData)}
@@ -586,10 +654,10 @@ const SubmissionDetailPage = () => {
 
           {/* Section A */}
           <Section title="Section A: General Information and Institute Details" icon={<Building2 className="w-6 h-6" />}>
-            <DataRow label="Institution Name" value={submissionData.sectionA.institutionName} />
+            <DataRow label="Institution Name" value={submissionData.sectionA.name} />
             <DataRow label="Year of Establishment" value={submissionData.sectionA.yearEstablished} />
             <DataRow label="Address" value={submissionData.sectionA.address} />
-            <DataRow label="Pincode" value={submissionData.sectionA.pincode} />
+            <DataRow label="Pincode" value={submissionData.sectionA.pinCode} />
             <DataRow label="State" value={submissionData.sectionA.state} />
             <DataRow
               label="Website"
@@ -600,21 +668,34 @@ const SubmissionDetailPage = () => {
               }
             />
             <DataRow label="Head of Institution" value={submissionData.sectionA.headName} />
-            <DataRow label="Institute Type" value={submissionData.sectionA.instituteType} />
-            <DataRow label="Institute Category" value={submissionData.sectionA.instituteCategory} />
+            <DataRow label="Institute Type" value={submissionData.sectionA.ownership} />
+            <DataRow label="Institute Category" value={submissionData.sectionA.category } />
             <DataRow label="Affiliated University" value={submissionData.sectionA.affiliatedUniversity} />
-            <DataRow label="AICTE Approval" value={`${submissionData.sectionA.aicteApprovalNo} | Dated: ${submissionData.sectionA.aicteDate}`} />
-            <DataRow label="NBA Accreditation" value={`${submissionData.sectionA.nbaAccredited} | Valid till: ${submissionData.sectionA.nbaValidityDate}`} />
-            <DataRow label="NAAC Accreditation" value={`Score: ${submissionData.sectionA.naacScore} | Valid till: ${submissionData.sectionA.naacValidityDate}`} />
-            <DataRow label="Other Accreditation" value={submissionData.sectionA.otherAccreditation} />
+            <DataRow label="AICTE Approval" value={`${submissionData.sectionA.aicteApproval}`} />
+            <DataRow label="NBA Accreditation" value={`${submissionData.sectionA.nbaAccredited}`} />
+            <DataRow label="NAAC Accreditation" value={`Score: ${submissionData.sectionA.naacScore} | Valid till: ${submissionData.sectionA.naacValidity}`} />
+            <DataRow label="Other Accreditation" value={submissionData.sectionA.otherAccreditations} />
             <DataRow label="Applicant Name" value={submissionData.sectionA.applicantName} />
             <DataRow label="Applicant Designation" value={submissionData.sectionA.applicantDesignation} />
             <DataRow label="Contact Number" value={submissionData.sectionA.applicantContact} />
             <DataRow label="Email" value={submissionData.sectionA.applicantEmail} />
+            <DataRow label="Field" value={submissionData.sectionA.field} />
           </Section>
 
           {/* Section B */}
           <Section title="Section B: Gender Information, Diversity and Finance" icon={<Users className="w-6 h-6" />}>
+            <DataRow
+              label="Section B Drive Link"
+              value={
+                submissionData.sectionB.sectionBDriveLink !== 'N/A' ? (
+                  <a href={submissionData.sectionB.sectionBDriveLink} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                    View Section B Documents
+                  </a>
+                ) : (
+                  'N/A'
+                )
+              }
+            />
             <h3 className="font-semibold text-slate-800 mb-3 text-sm uppercase tracking-wide">Gender Information (Students Admitted)</h3>
             <Table headers={['Gender', ...years.sectionB.map(formatYear)]} data={submissionData.sectionB.genderInfo} />
 
@@ -625,22 +706,34 @@ const SubmissionDetailPage = () => {
             <Table headers={['Sl.No', 'Department', 'Exam Name', 'Highest Rank', 'Lowest Rank']} data={submissionData.sectionB.examScores} />
 
             <h3 className="font-semibold text-slate-800 mb-3 mt-6 text-sm uppercase tracking-wide">Financial Details (Last Academic Year)</h3>
-            <DataRow label="Average Tuition Fees (per year)" value={`₹ ${submissionData.sectionB.avgTuitionFees}`} />
-            <DataRow label="Other Fees (per year)" value={`₹ ${submissionData.sectionB.otherFees}`} />
-            <DataRow label="Hostel Fees (per year)" value={`₹ ${submissionData.sectionB.hostelFees}`} />
-            <DataRow label="Total Teaching Staff Expenses" value={`₹ ${submissionData.sectionB.teachingSalaryExpense}`} />
-            <DataRow label="Total Lab Expenses" value={`₹ ${submissionData.sectionB.labExpenses}`} />
-            <DataRow label="Per Student Expenditure" value={`₹ ${submissionData.sectionB.perStudentExpenditure}`} />
+            <DataRow label="Average Tuition Fees (per year)" value={`₹${Number(submissionData.sectionB.avgTuitionFees).toLocaleString('en-IN')}`} />
+            <DataRow label="Other Fees (per year)" value={`₹${Number(submissionData.sectionB.otherFees).toLocaleString('en-IN')}`} />
+            <DataRow label="Hostel Fees (per year)" value={`₹${Number(submissionData.sectionB.hostelFees).toLocaleString('en-IN')}`} />
+            <DataRow label="Total Teaching Staff Expenses" value={`₹${Number(submissionData.sectionB.teachingSalaryExpense).toLocaleString('en-IN')}`} />
+            <DataRow label="Total Lab Expenses" value={`₹${Number(submissionData.sectionB.labExpenses).toLocaleString('en-IN')}`} />
+            <DataRow label="Per Student Expenditure" value={`₹${Number(submissionData.sectionB.perStudentExpenditure).toLocaleString('en-IN')}`} />
           </Section>
 
-          {/* Section C */}
+          {/* Section C (restored original logic) */}
           <Section title="Section C: Academics" icon={<GraduationCap className="w-6 h-6" />}>
-            {/* Specialization Details - Student Admission */}
+            <DataRow
+              label="Section C Drive Link"
+              value={
+                submissionData.sectionC.sectionCDriveLink !== 'N/A' ? (
+                  <a href={submissionData.sectionC.sectionCDriveLink} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                    View Section C Documents
+                  </a>
+                ) : (
+                  'N/A'
+                )
+              }
+            />
             <h3 className="font-semibold text-slate-800 mb-3 text-sm uppercase tracking-wide">Specialization Details - Student Admission</h3>
             <div className="overflow-x-auto mb-6">
               <table className="w-full text-sm">
                 <thead className="bg-gray-50">
                   <tr>
+                    <th className="px-4 py-3 text-left font-semibold text-slate-700 border-b text-xs">Sl.No</th>
                     <th className="px-4 py-3 text-left font-semibold text-slate-700 border-b text-xs">Department</th>
                     {years.sectionC.map((year) => (
                       <th key={year} colSpan="3" className="px-4 py-3 text-center font-semibold text-slate-700 border-b text-xs">
@@ -649,6 +742,7 @@ const SubmissionDetailPage = () => {
                     ))}
                   </tr>
                   <tr className="bg-gray-50">
+                    <th className="px-4 py-2 text-left text-xs border-b"></th>
                     <th className="px-4 py-2 text-left text-xs border-b"></th>
                     {years.sectionC.map((year) => (
                       <React.Fragment key={year}>
@@ -662,6 +756,7 @@ const SubmissionDetailPage = () => {
                 <tbody>
                   {submissionData.sectionC.specialization.map((row) => (
                     <tr key={row.slNo} className="border-b border-gray-100 hover:bg-gray-50">
+                      <td className="px-4 py-3 text-slate-700">{row.slNo}</td>
                       <td className="px-4 py-3 text-slate-700 font-medium">{row.department}</td>
                       {years.sectionC.map((year) => {
                         const formattedYear = formatYear(year);
@@ -669,7 +764,7 @@ const SubmissionDetailPage = () => {
                           <React.Fragment key={formattedYear}>
                             <td className="px-4 py-3 text-slate-700">{row[formattedYear]?.intake || ''}</td>
                             <td className="px-4 py-3 text-slate-700">{row[formattedYear]?.filled || ''}</td>
-                            <td className="px-4 py-3 text-slate-700">{row[formattedYear]?.percentage ? Number(row[formattedYear].percentage).toFixed(2) : ''}</td>
+                            <td className="px-4 py-3 text-slate-700">{row[formattedYear]?.percentage || ''}</td>
                           </React.Fragment>
                         );
                       })}
@@ -679,12 +774,12 @@ const SubmissionDetailPage = () => {
               </table>
             </div>
 
-            {/* Faculty Details */}
             <h3 className="font-semibold text-slate-800 mb-3 text-sm uppercase tracking-wide">Faculty Details</h3>
             <div className="overflow-x-auto mb-6">
               <table className="w-full text-sm">
                 <thead className="bg-gray-50">
                   <tr>
+                    <th className="px-4 py-3 text-left font-semibold text-slate-700 border-b text-xs">Sl.No</th>
                     <th className="px-4 py-3 text-left font-semibold text-slate-700 border-b text-xs">Department</th>
                     <th className="px-4 py-3 text-left font-semibold text-slate-700 border-b text-xs">Intake</th>
                     {years.sectionC.map((year) => (
@@ -694,6 +789,7 @@ const SubmissionDetailPage = () => {
                     ))}
                   </tr>
                   <tr className="bg-gray-50">
+                    <th className="px-4 py-2 text-left text-xs border-b"></th>
                     <th className="px-4 py-2 text-left text-xs border-b"></th>
                     <th className="px-4 py-2 text-left text-xs border-b"></th>
                     {years.sectionC.map((year) => (
@@ -708,6 +804,7 @@ const SubmissionDetailPage = () => {
                 <tbody>
                   {submissionData.sectionC.facultyDetails.map((row) => (
                     <tr key={row.slNo} className="border-b border-gray-100 hover:bg-gray-50">
+                      <td className="px-4 py-3 text-slate-700">{row.slNo}</td>
                       <td className="px-4 py-3 text-slate-700 font-medium">{row.department}</td>
                       <td className="px-4 py-3 text-slate-700">{row.intake}</td>
                       {years.sectionC.map((year) => {
@@ -726,9 +823,8 @@ const SubmissionDetailPage = () => {
               </table>
             </div>
 
-            {/* Faculty Totals and V Formula */}
-            <h3 className="font-semibold text-slate-800 mb-3 text-sm uppercase tracking-wide">Faculty Totals and V Formula</h3>
-            <Table
+            {/* <h3 className="font-semibold text-slate-800 mb-3 text-sm uppercase tracking-wide">Faculty Totals and V Formula</h3> */}
+            {/* <Table
               headers={['Year', 'Total Professors', 'Total Associate Professors', 'Total Assistant Professors', 'V Formula']}
               data={years.sectionC.map((year) => {
                 const formattedYear = formatYear(year);
@@ -745,20 +841,18 @@ const SubmissionDetailPage = () => {
                   ).toFixed(2),
                 };
               })}
-            />
+            /> */}
 
-            {/* PhD Holders */}
-            <h3 className="font-semibold text-slate-800 mb-3 mt-6 text-sm uppercase tracking-wide">PhD Holders (Permanent Faculty)</h3>
+            <h3 className="font-semibold text-slate-800 mb-3 text-sm uppercase tracking-wide">PhD Holders (Permanent Faculty)</h3>
             <Table
               headers={['Year', 'Total Faculty', 'PhD Holders', 'Percentage']}
               data={submissionData.sectionC.phdHolders.map((row) => ({
                 Year: row.year,
                 'Total Faculty': row.totalFaculty,
                 'PhD Holders': row.phdHolders,
-                Percentage: Number(row.percentage).toFixed(2),
+                Percentage: row.percentage,
               }))}
             />
-
             {/* Faculty Information */}
             <h3 className="font-semibold text-slate-800 mb-3 mt-6 text-sm uppercase tracking-wide">Faculty Information</h3>
             <DataRow label="Average Teaching Experience" value={submissionData.sectionC.avgTeachingExperience} />
@@ -766,12 +860,12 @@ const SubmissionDetailPage = () => {
             <DataRow label="Contact Hours" value={submissionData.sectionC.contactHours} />
             <DataRow label="Faculty Below Feedback Threshold" value={submissionData.sectionC.belowThresholdFaculty} />
 
-            {/* Placement, Higher Education, and Entrepreneurship */}
             <h3 className="font-semibold text-slate-800 mb-3 mt-6 text-sm uppercase tracking-wide">Placement(A), Higher Education(B), and Entrepreneurship(C)</h3>
             <div className="overflow-x-auto mb-6">
               <table className="w-full text-sm">
                 <thead className="bg-gray-50">
                   <tr>
+                    <th className="px-4 py-3 text-left font-semibold text-slate-700 border-b text-xs">Sl.No</th>
                     <th className="px-4 py-3 text-left font-semibold text-slate-700 border-b text-xs">Department</th>
                     {years.sectionC.map((year) => (
                       <th key={year} colSpan="4" className="px-4 py-3 text-center font-semibold text-slate-700 border-b text-xs">
@@ -780,6 +874,7 @@ const SubmissionDetailPage = () => {
                     ))}
                   </tr>
                   <tr className="bg-gray-50">
+                    <th className="px-4 py-2 text-left text-xs border-b"></th>
                     <th className="px-4 py-2 text-left text-xs border-b"></th>
                     {years.sectionC.map((year) => (
                       <React.Fragment key={year}>
@@ -794,6 +889,7 @@ const SubmissionDetailPage = () => {
                 <tbody>
                   {submissionData.sectionC.placementData.map((row) => (
                     <tr key={row.slNo} className="border-b border-gray-100 hover:bg-gray-50">
+                      <td className="px-4 py-3 text-slate-700">{row.slNo}</td>
                       <td className="px-4 py-3 text-slate-700 font-medium">{row.department}</td>
                       {years.sectionC.map((year) => {
                         const formattedYear = formatYear(year);
@@ -814,12 +910,12 @@ const SubmissionDetailPage = () => {
               </table>
             </div>
 
-            {/* Placement Summary */}
             <h3 className="font-semibold text-slate-800 mb-3 mt-6 text-sm uppercase tracking-wide">Placement Summary</h3>
             <div className="overflow-x-auto mb-6">
               <table className="w-full text-sm">
                 <thead className="bg-gray-50">
                   <tr>
+                    <th className="px-4 py-3 text-left font-semibold text-slate-700 border-b text-xs">Sl.No</th>
                     <th className="px-4 py-3 text-left font-semibold text-slate-700 border-b text-xs">Department</th>
                     {years.sectionC.map((year) => (
                       <th key={year} colSpan="3" className="px-4 py-3 text-center font-semibold text-slate-700 border-b text-xs">
@@ -828,6 +924,7 @@ const SubmissionDetailPage = () => {
                     ))}
                   </tr>
                   <tr className="bg-gray-50">
+                    <th className="px-4 py-2 text-left text-xs border-b"></th>
                     <th className="px-4 py-2 text-left text-xs border-b"></th>
                     {years.sectionC.map((year) => (
                       <React.Fragment key={year}>
@@ -841,6 +938,7 @@ const SubmissionDetailPage = () => {
                 <tbody>
                   {submissionData.sectionC.placementSummary.map((row) => (
                     <tr key={row.slNo} className="border-b border-gray-100 hover:bg-gray-50">
+                      <td className="px-4 py-3 text-slate-700">{row.slNo}</td>
                       <td className="px-4 py-3 text-slate-700 font-medium">{row.department}</td>
                       {years.sectionC.map((year) => {
                         const formattedYear = formatYear(year);
@@ -848,9 +946,7 @@ const SubmissionDetailPage = () => {
                           <React.Fragment key={formattedYear}>
                             <td className="px-4 py-3 text-slate-700">{row[formattedYear]?.n || ''}</td>
                             <td className="px-4 py-3 text-slate-700">{row[formattedYear]?.x || ''}</td>
-                            <td className="px-4 py-3 text-slate-700">
-                              {row[formattedYear]?.n > 0 ? ((row[formattedYear]?.x / row[formattedYear]?.n) * 100).toFixed(2) : 0}
-                            </td>
+                            <td className="px-4 py-3 text-slate-700">{row[formattedYear]?.percentage || ''}</td>
                           </React.Fragment>
                         );
                       })}
@@ -860,7 +956,6 @@ const SubmissionDetailPage = () => {
               </table>
             </div>
 
-            {/* Student Contact Details */}
             <h3 className="font-semibold text-slate-800 mb-3 mt-6 text-sm uppercase tracking-wide">Student Contact Details (Last Passed Out Batch)</h3>
             <Table
               headers={['Sl.No', 'Name and Department', 'E-Mail Id']}
@@ -871,7 +966,6 @@ const SubmissionDetailPage = () => {
               }))}
             />
 
-            {/* Placement Salary Details */}
             <h3 className="font-semibold text-slate-800 mb-3 mt-6 text-sm uppercase tracking-wide">Placement Salary Details</h3>
             <Table
               headers={['Particular', ...years.sectionC.map(formatYear)]}
@@ -887,7 +981,6 @@ const SubmissionDetailPage = () => {
               }))}
             />
 
-            {/* Active MoUs */}
             <h3 className="font-semibold text-slate-800 mb-3 mt-6 text-sm uppercase tracking-wide">Active MoUs</h3>
             <Table
               headers={['Year', 'No. of Active MoUs']}
@@ -903,7 +996,6 @@ const SubmissionDetailPage = () => {
               ]}
             />
 
-            {/* Other Academic Details */}
             <h3 className="font-semibold text-slate-800 mb-3 mt-6 text-sm uppercase tracking-wide">Other Academic Details</h3>
             <DataRow label="NEP 2020 Implementation" value={submissionData.sectionC.nepImplementation} />
             <DataRow label="Multiple Entry & Exit Scheme" value={submissionData.sectionC.multipleEntryExit} />
@@ -914,7 +1006,6 @@ const SubmissionDetailPage = () => {
             <DataRow label="Student Counsellor Available" value={submissionData.sectionC.studentCounsellor} />
             <DataRow label="Programs Conducted (Yoga, etc.)" value={submissionData.sectionC.programsConducted} />
 
-            {/* MoUs with Foreign Universities */}
             <h3 className="font-semibold text-slate-800 mb-3 mt-6 text-sm uppercase tracking-wide">MoUs with Foreign Universities</h3>
             <DataRow label="MoUs with Foreign Universities" value={submissionData.sectionC.hasForeignMoUs ? 'Yes' : 'No'} />
             {submissionData.sectionC.hasForeignMoUs && submissionData.sectionC.foreignMoUs?.length > 0 && (
@@ -930,95 +1021,135 @@ const SubmissionDetailPage = () => {
               />
             )}
 
-            {/* Foreign Language Training */}
-            <h3 className="font-semibold text-slate-800 mb-3 mt-6 text-sm uppercase tracking-wide">Foreign Language Training</h3>
-            <DataRow label="Foreign Language Training" value={submissionData.sectionC.foreignLanguageTraining} />
-            <DataRow
-              label="Certificate Details"
-              value={<a href={submissionData.sectionC.foreignLanguageCertLink} className="text-blue-600 hover:underline">View Certification Details</a>}
-            />
+           <h3 className="font-semibold text-slate-800 mb-3 mt-6 text-sm uppercase tracking-wide">Foreign Language Training</h3>
+<DataRow label="Foreign Language Training" value={submissionData.sectionC.foreignLanguageTraining} />
+{submissionData.sectionC.foreignLanguageTraining === 'Yes' && (
+  <DataRow
+    label="Certificate Details"
+    value={
+      submissionData.sectionC.foreignLanguageCertLink !== 'N/A' ? (
+        <a href={submissionData.sectionC.foreignLanguageCertLink} className="text-blue-600 hover:underline">View Certification Details</a>
+      ) : (
+        'N/A'
+      )
+    }
+  />
+)}
           </Section>
 
           {/* Section D */}
-          <Section title="Section D: Infrastructure" icon={<Home className="w-6 h-6" />}>
-            <h3 className="font-semibold text-slate-800 mb-3 text-sm uppercase tracking-wide">Campus Infrastructure</h3>
-            <DataRow label="Campus Area (sq.ft)" value={submissionData.sectionD.campusArea} />
-            <DataRow label="Total Built-up Area (sq.ft)" value={submissionData.sectionD.builtUpArea} />
-            <DataRow label="Number of Classrooms" value={submissionData.sectionD.classrooms} />
-            <DataRow label="Number of Laboratories" value={submissionData.sectionD.laboratories} />
-            <DataRow label="Faculty Cabins" value={submissionData.sectionD.facultyCabins} />
-            <DataRow label="Conference/Discussion Halls" value={submissionData.sectionD.conferenceHalls} />
-            <DataRow label="Auditoriums" value={submissionData.sectionD.auditoriums} />
-            <DataRow label="Student Computer Ratio" value={submissionData.sectionD.studentComputerRatio} />
+<Section title="Section D: Infrastructure" icon={<Home className="w-6 h-6" />}>
+  <DataRow
+    label="Section D Drive Link"
+    value={
+      submissionData.sectionD.sectionDDriveLink !== 'N/A' ? (
+        <a href={submissionData.sectionD.sectionDDriveLink} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+          View Section D Documents
+        </a>
+      ) : (
+        'N/A'
+      )
+    }
+  />
+  <h3 className="font-semibold text-slate-800 mb-3 text-sm uppercase tracking-wide">Campus Infrastructure</h3>
+  <DataRow label="Campus Area (sq.ft)" value={submissionData.sectionD.campusArea || 'N/A'} />
+  <DataRow label="Total Built-up Area (sq.ft)" value={submissionData.sectionD.builtUpArea || 'N/A'} />
+  <DataRow label="Number of Classrooms" value={submissionData.sectionD.classrooms || 'N/A'} />
+  <DataRow label="Number of Laboratories" value={submissionData.sectionD.laboratories || 'N/A'} />
+  <DataRow label="Faculty Cabins" value={submissionData.sectionD.facultyCabins || 'N/A'} />
+  <DataRow label="Conference/Discussion Halls" value={submissionData.sectionD.conferenceHalls || 'N/A'} />
+  <DataRow label="Auditoriums" value={submissionData.sectionD.auditoriums || 'N/A'} />
+  <DataRow label="Student Computer Ratio" value={submissionData.sectionD.studentComputerRatio || 'N/A'} />
 
-            <h3 className="font-semibold text-slate-800 mb-3 mt-6 text-sm uppercase tracking-wide">Facilities</h3>
-            <DataRow label="STP Plant" value={`${submissionData.sectionD.stpPlant} | Output: ${submissionData.sectionD.stpOutcome}`} />
-            <DataRow label="Waste Disposal MoU" value={submissionData.sectionD.wasteDisposalMoU} />
-            <DataRow label="NSS Available" value={submissionData.sectionD.nss} />
-            <DataRow label="NCC Available" value={submissionData.sectionD.ncc} />
-            <DataRow
-              label="Cells/Committees Available"
-              value={submissionData.sectionD.cellsCommittees?.length > 0 ? submissionData.sectionD.cellsCommittees.join(', ') : 'None'}
-            />
-            <DataRow label="ATM on Campus" value={submissionData.sectionD.atm} />
-            <DataRow label="Wi-Fi Connectivity" value={submissionData.sectionD.wifi} />
-            <DataRow label="IQAC Established" value={`${submissionData.sectionD.iqac} | Date: ${submissionData.sectionD.iqacEstablished}`} />
+  <h3 className="font-semibold text-slate-800 mb-3 mt-6 text-sm uppercase tracking-wide">Facilities</h3>
+  <DataRow label="STP Plant" value={submissionData.sectionD.stpPlant} />
+  {submissionData.sectionD.stpPlant === 'Yes' && <DataRow label="STP Output" value={submissionData.sectionD.stpOutcome || 'N/A'} />}
+  <DataRow label="Waste Disposal MoU" value={submissionData.sectionD.wasteDisposalMoU} />
+  <DataRow label="NSS Available" value={submissionData.sectionD.nss} />
+  <DataRow label="NCC Available" value={submissionData.sectionD.ncc} />
+  <DataRow
+    label="Cells/Committees Available"
+    value={submissionData.sectionD.cellsCommittees || 'N/A'}
+  />
+  <DataRow label="ATM on Campus" value={submissionData.sectionD.atm} />
+  <DataRow label="Wi-Fi Connectivity" value={submissionData.sectionD.wifi} />
+  {submissionData.sectionD.wifi === 'Yes' && <DataRow label="Wi-Fi Details" value={submissionData.sectionD.wifiDetails || 'N/A'} />}
+  <DataRow label="IQAC Established" value={submissionData.sectionD.iqac} />
+  {submissionData.sectionD.iqac === 'Yes' && <DataRow label="IQAC Establishment Date" value={submissionData.sectionD.iqacEstablished || 'N/A'} />}
 
-            <h3 className="font-semibold text-slate-800 mb-3 mt-6 text-sm uppercase tracking-wide">Library Resources</h3>
-            <DataRow label="Central Library Area (sq.ft)" value={submissionData.sectionD.centralLibrary} />
-            <DataRow label="Total Book Volumes" value={submissionData.sectionD.booksVolumes} />
-            <DataRow label="Books Added (Last 3 Years)" value={submissionData.sectionD.booksAddedLastThreeYears} />
-            <DataRow label="Printed Journals" value={submissionData.sectionD.printedJournals} />
-            <DataRow label="Online Journals" value={submissionData.sectionD.onlineJournals} />
-            <DataRow label="Average Faculty Library Visits/Month" value={submissionData.sectionD.avgFacultyVisitsPerMonth} />
-            <DataRow label="Average Student Library Visits/Month" value={submissionData.sectionD.avgStudentVisitsPerMonth} />
-            <DataRow label="Digital Library" value={submissionData.sectionD.digitalLibrary} />
+  <h3 className="font-semibold text-slate-800 mb-3 mt-6 text-sm uppercase tracking-wide">Library Resources</h3>
+  <DataRow label="Central Library Area (sq.ft)" value={submissionData.sectionD.centralLibrary || 'N/A'} />
+  <DataRow label="Total Book Volumes" value={submissionData.sectionD.booksVolumes || 'N/A'} />
+  <DataRow label="Books Added (Last 3 Years)" value={submissionData.sectionD.booksAddedLastThreeYears || 'N/A'} />
+  <DataRow label="Printed Journals" value={submissionData.sectionD.printedJournals || 'N/A'} />
+  <DataRow label="Online Journals" value={submissionData.sectionD.onlineJournals || 'N/A'} />
+  <DataRow label="Average Faculty Library Visits/Month" value={submissionData.sectionD.avgFacultyVisitsPerMonth || 'N/A'} />
+  <DataRow label="Average Student Library Visits/Month" value={submissionData.sectionD.avgStudentVisitsPerMonth || 'N/A'} />
+  <DataRow label="Digital Library" value={submissionData.sectionD.digitalLibrary} />
 
-            <h3 className="font-semibold text-slate-800 mb-3 mt-6 text-sm uppercase tracking-wide">Department Libraries</h3>
-            <DataRow label="Department Libraries Available" value={submissionData.sectionD.departmentLibrary?.length > 0 ? 'Yes' : 'No'} />
-            {submissionData.sectionD.departmentLibrary?.length > 0 ? (
-              <Table headers={['Department', 'Volumes']} data={submissionData.sectionD.departmentLibrary} />
-            ) : (
-              <p className="text-slate-600 text-sm">No department libraries available</p>
-            )}
+  <h3 className="font-semibold text-slate-800 mb-3 mt-6 text-sm uppercase tracking-wide">Department Libraries</h3>
+  <DataRow label="Department Libraries Available" value={submissionData.sectionD.hasDeptLibrary} />
+  {submissionData.sectionD.hasDeptLibrary === 'Yes' && submissionData.sectionD.departmentLibrary?.length > 0 ? (
+    <Table headers={['Department', 'Volumes']} data={submissionData.sectionD.departmentLibrary.map(item => ({ Department: item.department, Volumes: item.volumes }))} />
+  ) : (
+    <p className="text-slate-600 text-sm">No department libraries available</p>
+  )}
 
-            <h3 className="font-semibold text-slate-800 mb-3 mt-6 text-sm uppercase tracking-wide">Hostel Details</h3>
-            <DataRow label="Hostel Available" value={submissionData.sectionD.hostelDetails?.length > 0 ? 'Yes' : 'No'} />
-            {submissionData.sectionD.hostelDetails?.length > 0 ? (
-              <Table headers={['Type', 'Rooms', 'Capacity', 'Occupied']} data={submissionData.sectionD.hostelDetails} />
-            ) : (
-              <p className="text-slate-600 text-sm">No hostel facilities available</p>
-            )}
+  <h3 className="font-semibold text-slate-800 mb-3 mt-6 text-sm uppercase tracking-wide">Hostel Details</h3>
+  <DataRow label="Hostel Available" value={submissionData.sectionD.hasHostel} />
+  {submissionData.sectionD.hasHostel === 'Yes' && submissionData.sectionD.hostelDetails?.length > 0 ? (
+    <Table headers={['Type', 'Rooms', 'Capacity', 'Occupied']} data={submissionData.sectionD.hostelDetails.map(item => ({ Type: item.type, Rooms: item.rooms, Capacity: item.capacity, Occupied: item.occupied }))} />
+  ) : (
+    <p className="text-slate-600 text-sm">No hostel facilities available</p>
+  )}
 
-            <h3 className="font-semibold text-slate-800 mb-3 mt-6 text-sm uppercase tracking-wide">Faculty Quarters</h3>
-            <DataRow label="Total Quarters" value={submissionData.sectionD.facultyQuarters.quarters} />
-            <DataRow label="Occupied Quarters" value={submissionData.sectionD.facultyQuarters.occupied} />
+  <h3 className="font-semibold text-slate-800 mb-3 mt-6 text-sm uppercase tracking-wide">Faculty Quarters</h3>
+  <DataRow label="Faculty Quarters Available" value={submissionData.sectionD.hasFacultyQuarters} />
+  {submissionData.sectionD.hasFacultyQuarters === 'Yes' && (
+    <>
+      <DataRow label="Total Quarters" value={submissionData.sectionD.facultyQuarters.quarters || 'N/A'} />
+      <DataRow label="Occupied Quarters" value={submissionData.sectionD.facultyQuarters.occupied || 'N/A'} />
+    </>
+  )}
 
-            <h3 className="font-semibold text-slate-800 mb-3 mt-6 text-sm uppercase tracking-wide">Common Facilities</h3>
-            <DataRow label="Guest Rooms" value={submissionData.sectionD.guestRooms} />
-            <DataRow label="Boys Common Rooms" value={submissionData.sectionD.boysCommonRooms} />
-            <DataRow label="Girls Common Rooms" value={submissionData.sectionD.girlsCommonRooms} />
+  <h3 className="font-semibold text-slate-800 mb-3 mt-6 text-sm uppercase tracking-wide">Common Facilities</h3>
+  <DataRow label="Guest Rooms" value={submissionData.sectionD.guestRooms.guestRooms || 'N/A'} />
+  <DataRow label="Boys Common Rooms" value={submissionData.sectionD.guestRooms.commonBoys || 'N/A'} />
+  <DataRow label="Girls Common Rooms" value={submissionData.sectionD.guestRooms.commonGirls || 'N/A'} />
 
-            <h3 className="font-semibold text-slate-800 mb-3 mt-6 text-sm uppercase tracking-wide">Medical Facilities</h3>
-            <DataRow label="Registered Medical Practitioner" value={submissionData.sectionD.medicalFacilities.registeredPractitioner} />
-            <DataRow label="Nursing Assistant" value={submissionData.sectionD.medicalFacilities.nursingAssistant} />
-            <DataRow label="Emergency Medicines" value={submissionData.sectionD.medicalFacilities.emergencyMedicines} />
+  <h3 className="font-semibold text-slate-800 mb-3 mt-6 text-sm uppercase tracking-wide">Medical Facilities</h3>
+  <DataRow label="Registered Medical Practitioner" value={submissionData.sectionD.medicalFacilities.registeredPractitioner} />
+  <DataRow label="Nursing Assistant" value={submissionData.sectionD.medicalFacilities.nursingAssistant} />
+  <DataRow label="Emergency Medicines" value={submissionData.sectionD.medicalFacilities.emergencyMedicines} />
 
-            <h3 className="font-semibold text-slate-800 mb-3 mt-6 text-sm uppercase tracking-wide">Sustainability Initiatives</h3>
-            <DataRow label="Solar Power Initiatives" value={submissionData.sectionD.solarPower} />
-            <DataRow label="Sustainable Development" value={submissionData.sectionD.sustainableDevelopment} />
+  <h3 className="font-semibold text-slate-800 mb-3 mt-6 text-sm uppercase tracking-wide">Sustainability Initiatives</h3>
+  <DataRow label="Solar Power Initiatives" value={submissionData.sectionD.solarPower} />
+  {submissionData.sectionD.solarPower === 'Yes' && <DataRow label="Solar Details" value={submissionData.sectionD.solarDetails || 'N/A'} />}
+  <DataRow label="Sustainable Development" value={submissionData.sectionD.sustainableDevelopment} />
+  {submissionData.sectionD.sustainableDevelopment === 'Yes' && <DataRow label="Sustainability Details" value={submissionData.sectionD.sustainabilityDetails || 'N/A'} />}
 
-            <h3 className="font-semibold text-slate-800 mb-3 mt-6 text-sm uppercase tracking-wide">Sports Facilities</h3>
-            <DataRow label="Sports Facilities Available" value={submissionData.sectionD.sportsFacilities?.length > 0 ? 'Yes' : 'No'} />
-            {submissionData.sectionD.sportsFacilities?.length > 0 ? (
-              <Table headers={['Facility', 'Area']} data={submissionData.sectionD.sportsFacilities} />
-            ) : (
-              <p className="text-slate-600 text-sm">No sports facilities available</p>
-            )}
-          </Section>
-
+  <h3 className="font-semibold text-slate-800 mb-3 mt-6 text-sm uppercase tracking-wide">Sports Facilities</h3>
+  <DataRow label="Sports Facilities Available" value={submissionData.sectionD.hasSportsFacilities} />
+  {submissionData.sectionD.hasSportsFacilities === 'Yes' && submissionData.sectionD.sportsFacilities?.length > 0 ? (
+    <Table headers={['Facility', 'Area']} data={submissionData.sectionD.sportsFacilities.map(facility => ({ Facility: facility.particular, Area: facility.area }))} />
+  ) : (
+    <p className="text-slate-600 text-sm">No sports facilities available</p>
+  )}
+</Section>
           {/* Section E */}
           <Section title="Section E: Research" icon={<BookOpen className="w-6 h-6" />}>
+            <DataRow
+              label="Section E Drive Link"
+              value={
+                submissionData.sectionE.sectionEDriveLink !== 'N/A' ? (
+                  <a href={submissionData.sectionE.sectionEDriveLink} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                    View Section E Documents
+                  </a>
+                ) : (
+                  'N/A'
+                )
+              }
+            />
             <h3 className="font-semibold text-slate-800 mb-3 text-sm uppercase tracking-wide">Journal Publications</h3>
             <Table
               headers={['Publication Type', ...years.sectionE.map(formatYear)]}
@@ -1058,7 +1189,7 @@ const SubmissionDetailPage = () => {
                 ...years.sectionE.reduce(
                   (acc, year) => ({
                     ...acc,
-                    [formatYear(year)]: row.particular === 'Percentage' ? `${row[formatYear(year)] || 0}%` : row[formatYear(year)] || '',
+                    [formatYear(year)]: row.particular === 'Percentage' ? `${row[formatYear(year)] || '0.00'}%` : row[formatYear(year)] || '',
                   }),
                   {}
                 ),
@@ -1172,20 +1303,7 @@ const SubmissionDetailPage = () => {
                     }),
                     {}
                   ),
-                })),
-                {
-                  'Sl.No': 'Total',
-                  Particular: '',
-                  ...years.sectionE.reduce(
-                    (acc, year) => ({
-                      ...acc,
-                      [`${formatYear(year)} (₹)`]: `₹${submissionData.sectionE.seedMoney
-                        .reduce((sum, row) => sum + Number(row[formatYear(year)] || 0), 0)
-                        .toLocaleString('en-IN')}`,
-                    }),
-                    {}
-                  ),
-                },
+                }))
               ]}
             />
 

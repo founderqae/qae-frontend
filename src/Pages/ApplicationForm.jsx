@@ -167,16 +167,13 @@ const StepperForm = () => {
           }
 
           .status-card {
-            background: white;
+            background: transparent;
             border-radius: 16px;
             padding: 3rem;
             text-align: center;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0);
           }
 
-          .status-card.loading {
-            border: 2px solid #ccfbf1;
-          }
 
           .spinner-container {
             display: flex;
@@ -188,7 +185,7 @@ const StepperForm = () => {
           .status-title {
             font-size: 2rem;
             font-weight: 700;
-            color: #1f2937;
+            color: ;
             margin-bottom: 1rem;
           }
 
@@ -359,7 +356,7 @@ const StepperForm = () => {
             display: inline-flex;
             align-items: center;
             gap: 0.5rem;
-            background: linear-gradient(135deg, #0f766e, #0d9488);
+            background: linear-gradient(135deg, #0f766eff, #0d9488);
             color: white;
             padding: 0.875rem 2rem;
             border-radius: 8px;

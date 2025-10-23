@@ -1,10 +1,14 @@
-import { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Building2 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ChevronLeft, ChevronRight, Building2, Loader2 } from 'lucide-react';
 import axios from 'axios';
+import { toast, ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 const SectionD = ({ onNext, onBack }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [currentYear, setCurrentYear] = useState(''); // Dynamic current academic year
+
   const [hasDeptLibrary, setHasDeptLibrary] = useState('no');
   const [hasHostel, setHasHostel] = useState('no');
   const [hasFacultyQuarters, setHasFacultyQuarters] = useState('no');
@@ -86,198 +90,208 @@ const SectionD = ({ onNext, onBack }) => {
 
   const [sectionDDriveLink, setSectionDDriveLink] = useState('');
 
-  // Fetch existing Section D data on component mount
-  useEffect(() => {
-    const fetchSectionDData = async () => {
+  // Get auth header
+  const getAuthHeader = () => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      toast.error('Please log in to access this section');
+      return {};
+    }
+    return { Authorization: `Bearer ${token}` };
+  };
+
+  // Fetch current academic year (same as SectionB)
+  const fetchYearConfig = async (retry = 3, delay = 1000) => {
+    try {
       setLoading(true);
-      try {
-        const token = localStorage.getItem('token');
-        const response = await axios.get('https://qae-server.vercel.app/api/submit/submissions/section-d?year=2025', {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-
-        const data = response.data;
-        setGeneralData({
-          campusArea: data.campusArea || '',
-          totalBuiltUpArea: data.totalBuiltUpArea || '',
-          noClassrooms: data.noClassrooms || '',
-          noLaboratories: data.noLaboratories || '',
-          noFacultyCabins: data.noFacultyCabins || '',
-          noConferenceHalls: data.noConferenceHalls || '',
-          noAuditoriums: data.noAuditoriums || '',
-          studentComputerRatio: data.studentComputerRatio || '',
-          moUWasteDisposal: data.moUWasteDisposal || 'no',
-          hasNSS: data.hasNSS || 'no',
-          hasNCC: data.hasNCC || 'no',
-          cellsCommittees: data.cellsCommittees || '',
-          hasATM: data.hasATM || 'no',
-          stpDetails: data.stpDetails || '',
-          wifiDetails: data.wifiDetails || '',
-          iqacEstablishmentDate: data.iqacEstablishmentDate ? data.iqacEstablishmentDate.split('T')[0] : '',
-        });
-
-        setLibraryData({
-          centralLibraryArea: data.centralLibraryArea || '',
-          noVolumes: data.noVolumes || '',
-          noBooksAddedLast3: data.noBooksAddedLast3 || '',
-          noPrintedJournals: data.noPrintedJournals || '',
-          noOnlineJournals: data.noOnlineJournals || '',
-          avgFacultyVisitsPerMonth: data.avgFacultyVisitsPerMonth || '',
-          avgStudentVisitsPerMonth: data.avgStudentVisitsPerMonth || '',
-          hasDigitalLibrary: data.hasDigitalLibrary || 'no',
-        });
-
-        setHasDeptLibrary(data.hasDeptLibrary || 'no');
-        setDeptLibraryData(
-          data.departmentLibraries.length > 0
-            ? data.departmentLibraries.map((dl, index) => ({
-                id: index + 1,
-                department: dl.department || '',
-                volumes: dl.volumes || '',
-              }))
-            : deptLibraryData
-        );
-
-        setHasHostel(data.hasHostel || 'no');
-        setHostelData({
-          boys: data.hostels.boys || { noRooms: '', capacity: '', occupied: '' },
-          girls: data.hostels.girls || { noRooms: '', capacity: '', occupied: '' },
-        });
-
-        setHasFacultyQuarters(data.hasFacultyQuarters || 'no');
-        setFacultyQuartersData({
-          noQuarters: data.facultyQuarters.noQuarters || '',
-          occupied: data.facultyQuarters.occupied || '',
-        });
-
-        setGuestRoomsData({
-          guestRooms: data.guestRooms.guestRooms || '',
-          commonBoys: data.guestRooms.commonBoys || '',
-          commonGirls: data.guestRooms.commonGirls || '',
-        });
-
-        setMedicalFacilitiesData({
-          registeredPractitioner: data.medicalFacilities.registeredPractitioner || 'no',
-          nursingAssistant: data.medicalFacilities.nursingAssistant || 'no',
-          emergencyMedicines: data.medicalFacilities.emergencyMedicines || 'no',
-        });
-
-        setHasSportsFacilities(data.hasSportsFacilities || 'no');
-        setSportsData(
-          data.sportsFacilities.length > 0
-            ? data.sportsFacilities.map((sf, index) => ({
-                id: index + 1,
-                particular: sf.particular || '',
-                area: sf.area || '',
-              }))
-            : sportsData
-        );
-
-        setHasSTP(data.hasSTP || 'no');
-        setHasWiFi(data.hasWiFi || 'no');
-        setHasIQAC(data.hasIQAC || 'no');
-        setHasSolar(data.hasSolar || 'no');
-        setHasSustainability(data.hasSustainability || 'no');
-
-        setSustainabilityData({
-          solarDetails: data.solarDetails || '',
-          sustainabilityDetails: data.sustainabilityDetails || '',
-        });
-
-        setSectionDDriveLink(data.sectionDDriveLink || '');
-      } catch (err) {
-        if (err.response?.status === 404) {
-          // Submission not found, keep default form values
-        } else {
-          setError('Failed to fetch Section D data');
-        }
-      } finally {
-        setLoading(false);
+      const { data } = await axios.get(
+        'https://qae-server.vercel.app/api/config/year',
+        { headers: getAuthHeader() }
+      );
+      if (!data.p) throw new Error('Invalid year configuration');
+      setCurrentYear(data.p);
+    } catch (err) {
+      if (retry > 0) {
+        await new Promise((r) => setTimeout(r, delay));
+        return fetchYearConfig(retry - 1, delay * 2);
       }
-    };
+      toast.error(err.response?.data?.message || 'Failed to load academic year');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    fetchSectionDData();
+  // Fetch existing Section D data using currentYear
+  const fetchSectionDData = async () => {
+    if (!currentYear) return;
+    setLoading(true);
+    try {
+      const { data } = await axios.get(
+        `https://qae-server.vercel.app/api/submit/submissions/section-d?year=${currentYear}`,
+        { headers: getAuthHeader() }
+      );
+
+      setGeneralData({
+        campusArea: data.campusArea || '',
+        totalBuiltUpArea: data.totalBuiltUpArea || '',
+        noClassrooms: data.noClassrooms || '',
+        noLaboratories: data.noLaboratories || '',
+        noFacultyCabins: data.noFacultyCabins || '',
+        noConferenceHalls: data.noConferenceHalls || '',
+        noAuditoriums: data.noAuditoriums || '',
+        studentComputerRatio: data.studentComputerRatio || '',
+        moUWasteDisposal: data.moUWasteDisposal || 'no',
+        hasNSS: data.hasNSS || 'no',
+        hasNCC: data.hasNCC || 'no',
+        cellsCommittees: data.cellsCommittees || '',
+        hasATM: data.hasATM || 'no',
+        stpDetails: data.stpDetails || '',
+        wifiDetails: data.wifiDetails || '',
+        iqacEstablishmentDate: data.iqacEstablishmentDate?.split('T')[0] || '',
+      });
+
+      setLibraryData({
+        centralLibraryArea: data.centralLibraryArea || '',
+        noVolumes: data.noVolumes || '',
+        noBooksAddedLast3: data.noBooksAddedLast3 || '',
+        noPrintedJournals: data.noPrintedJournals || '',
+        noOnlineJournals: data.noOnlineJournals || '',
+        avgFacultyVisitsPerMonth: data.avgFacultyVisitsPerMonth || '',
+        avgStudentVisitsPerMonth: data.avgStudentVisitsPerMonth || '',
+        hasDigitalLibrary: data.hasDigitalLibrary || 'no',
+      });
+
+      setHasDeptLibrary(data.hasDeptLibrary || 'no');
+      setDeptLibraryData(
+        data.departmentLibraries?.length > 0
+          ? data.departmentLibraries.map((dl, i) => ({
+              id: i + 1,
+              department: dl.department || '',
+              volumes: dl.volumes || '',
+            }))
+          : deptLibraryData
+      );
+
+      setHasHostel(data.hasHostel || 'no');
+      setHostelData({
+        boys: data.hostels?.boys || { noRooms: '', capacity: '', occupied: '' },
+        girls: data.hostels?.girls || { noRooms: '', capacity: '', occupied: '' },
+      });
+
+      setHasFacultyQuarters(data.hasFacultyQuarters || 'no');
+      setFacultyQuartersData({
+        noQuarters: data.facultyQuarters?.noQuarters || '',
+        occupied: data.facultyQuarters?.occupied || '',
+      });
+
+      setGuestRoomsData({
+        guestRooms: data.guestRooms?.guestRooms || '',
+        commonBoys: data.guestRooms?.commonBoys || '',
+        commonGirls: data.guestRooms?.commonGirls || '',
+      });
+
+      setMedicalFacilitiesData({
+        registeredPractitioner: data.medicalFacilities?.registeredPractitioner || 'no',
+        nursingAssistant: data.medicalFacilities?.nursingAssistant || 'no',
+        emergencyMedicines: data.medicalFacilities?.emergencyMedicines || 'no',
+      });
+
+      setHasSportsFacilities(data.hasSportsFacilities || 'no');
+      setSportsData(
+        data.sportsFacilities?.length > 0
+          ? data.sportsFacilities.map((sf, i) => ({
+              id: i + 1,
+              particular: sf.particular || '',
+              area: sf.area || '',
+            }))
+          : sportsData
+      );
+
+      setHasSTP(data.hasSTP || 'no');
+      setHasWiFi(data.hasWiFi || 'no');
+      setHasIQAC(data.hasIQAC || 'no');
+      setHasSolar(data.hasSolar || 'no');
+      setHasSustainability(data.hasSustainability || 'no');
+
+      setSustainabilityData({
+        solarDetails: data.solarDetails || '',
+        sustainabilityDetails: data.sustainabilityDetails || '',
+      });
+
+      setSectionDDriveLink(data.sectionDDriveLink || '');
+    } catch (err) {
+      if (err.response?.status !== 404) {
+        // toast.error(err.response?.data?.message || 'Failed to load Section D data');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Effects
+  useEffect(() => {
+    fetchYearConfig();
   }, []);
 
-  // Calculate hostel totals for display
-  const calculateHostelTotals = () => {
-    return {
-      noRooms: (Number(hostelData.boys.noRooms) || 0) + (Number(hostelData.girls.noRooms) || 0),
-      capacity: (Number(hostelData.boys.capacity) || 0) + (Number(hostelData.girls.capacity) || 0),
-      occupied: (Number(hostelData.boys.occupied) || 0) + (Number(hostelData.girls.occupied) || 0),
-    };
+  useEffect(() => {
+    if (currentYear) fetchSectionDData();
+  }, [currentYear]);
+
+  // Hostel totals
+  const hostelTotals = {
+    noRooms: (Number(hostelData.boys.noRooms) || 0) + (Number(hostelData.girls.noRooms) || 0),
+    capacity: (Number(hostelData.boys.capacity) || 0) + (Number(hostelData.girls.capacity) || 0),
+    occupied: (Number(hostelData.boys.occupied) || 0) + (Number(hostelData.girls.occupied) || 0),
   };
 
-  const hostelTotals = calculateHostelTotals();
+  // Input handlers
+  const handleGeneralChange = (field, value) => setGeneralData((p) => ({ ...p, [field]: value }));
+  const handleLibraryChange = (field, value) => setLibraryData((p) => ({ ...p, [field]: value }));
 
-  // Handle input changes
-  const handleGeneralChange = (field, value) => {
-    setGeneralData(prev => ({ ...prev, [field]: value }));
-  };
-
-  const handleLibraryChange = (field, value) => {
-    setLibraryData(prev => ({ ...prev, [field]: value }));
-  };
-
-  const handleDeptLibraryChange = (id, field, value) => {
-    setDeptLibraryData(prev =>
-      prev.map(row => (row.id === id ? { ...row, [field]: value } : row))
-    );
-  };
-
+  const handleDeptLibraryChange = (id, field, value) =>
+    setDeptLibraryData((p) => p.map((r) => (r.id === id ? { ...r, [field]: value } : r)));
   const addDeptLibraryRow = () => {
-    const newId = Math.max(...deptLibraryData.map(row => row.id), 0) + 1;
-    setDeptLibraryData(prev => [...prev, { id: newId, department: '', volumes: '' }]);
+    const newId = Math.max(...deptLibraryData.map((r) => r.id), 0) + 1;
+    setDeptLibraryData((p) => [...p, { id: newId, department: '', volumes: '' }]);
   };
+  const removeDeptLibraryRow = () => setDeptLibraryData((p) => p.slice(0, -1));
 
-  const removeDeptLibraryRow = () => {
-    setDeptLibraryData(prev => prev.slice(0, -1));
-  };
-
-  const handleSportsChange = (id, field, value) => {
-    setSportsData(prev =>
-      prev.map(row => (row.id === id ? { ...row, [field]: value } : row))
-    );
-  };
-
+  const handleSportsChange = (id, field, value) =>
+    setSportsData((p) => p.map((r) => (r.id === id ? { ...r, [field]: value } : r)));
   const addSportsRow = () => {
-    const newId = Math.max(...sportsData.map(row => row.id), 0) + 1;
-    setSportsData(prev => [...prev, { id: newId, particular: '', area: '' }]);
+    const newId = Math.max(...sportsData.map((r) => r.id), 0) + 1;
+    setSportsData((p) => [...p, { id: newId, particular: '', area: '' }]);
   };
+  const removeSportsRow = () => setSportsData((p) => p.slice(0, -1));
 
-  const removeSportsRow = () => {
-    setSportsData(prev => prev.slice(0, -1));
-  };
-
-  const handleHostelChange = (gender, field, value) => {
-    setHostelData(prev => ({
-      ...prev,
-      [gender]: { ...prev[gender], [field]: value },
+  const handleHostelChange = (gender, field, value) =>
+    setHostelData((p) => ({
+      ...p,
+      [gender]: { ...p[gender], [field]: value },
     }));
-  };
 
-  const handleFacultyQuartersChange = (field, value) => {
-    setFacultyQuartersData(prev => ({ ...prev, [field]: value }));
-  };
+  const handleFacultyQuartersChange = (field, value) =>
+    setFacultyQuartersData((p) => ({ ...p, [field]: value }));
+  const handleGuestRoomsChange = (field, value) =>
+    setGuestRoomsData((p) => ({ ...p, [field]: value }));
+  const handleMedicalFacilitiesChange = (field, value) =>
+    setMedicalFacilitiesData((p) => ({ ...p, [field]: value }));
+  const handleSustainabilityChange = (field, value) =>
+    setSustainabilityData((p) => ({ ...p, [field]: value }));
 
-  const handleGuestRoomsChange = (field, value) => {
-    setGuestRoomsData(prev => ({ ...prev, [field]: value }));
-  };
+  // Submit handler
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!currentYear) {
+      toast.error('Academic year not loaded');
+      return;
+    }
 
-  const handleMedicalFacilitiesChange = (field, value) => {
-    setMedicalFacilitiesData(prev => ({ ...prev, [field]: value }));
-  };
-
-  const handleSustainabilityChange = (field, value) => {
-    setSustainabilityData(prev => ({ ...prev, [field]: value }));
-  };
-
-  // Handle form submission
-  const handleSubmit = async () => {
     setLoading(true);
     setError(null);
 
     const payload = {
+      year: currentYear,
       campusArea: generalData.campusArea,
       totalBuiltUpArea: generalData.totalBuiltUpArea,
       noClassrooms: generalData.noClassrooms,
@@ -323,44 +337,60 @@ const SectionD = ({ onNext, onBack }) => {
     };
 
     try {
-      const token = localStorage.getItem('token');
-      const existingSubmission = await axios.get('https://qae-server.vercel.app/api/submit/submissions/section-d?year=2025', {
-        headers: { Authorization: `Bearer ${token}` },
-      }).catch(() => null);
+      const headers = { ...getAuthHeader(), 'Content-Type': 'application/json' };
 
-      const method = existingSubmission ? 'put' : 'post';
-      const url = existingSubmission
-        ? 'https://qae-server.vercel.app/api/submit/submissions/section-d?year=2025'
-        : 'https://qae-server.vercel.app/api/submit/submissions/section-d';
+      try {
+        await axios.put(
+          `https://qae-server.vercel.app/api/submit/submissions/section-d`,
+          payload,
+          { headers }
+        );
+        toast.success('Section D updated successfully');
+      } catch (putErr) {
+        if (putErr.response?.status === 404) {
+          await axios.post(
+            `https://qae-server.vercel.app/api/submit/submissions/section-d`,
+            payload,
+            { headers }
+          );
+          toast.success('Section D submitted successfully');
+        } else {
+          throw putErr;
+        }
+      }
 
-      await axios[method](url, payload, {
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      });
-
-      alert(method === 'post' ? 'Section D submitted successfully' : 'Section D updated successfully');
-      if (onNext) onNext();
+      setTimeout(() => onNext?.(), 1500);
     } catch (err) {
-      setError(err.response?.data?.error || 'Failed to submit Section D');
-      alert(err.response?.data?.error || 'Failed to submit Section D');
+      toast.error(err.response?.data?.message || 'Failed to submit Section D');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleNext = () => {
-    if (onNext) {
-      onNext();
-    }
-  };
-
-  const handleBack = () => {
-    if (onBack) {
-      onBack();
-    }
-  };
+  // Initial loading screen
+  if (loading && !currentYear) {
+    return (
+      <div className="fixed inset-0 flex items-center justify-center pb-40">
+        <Loader2 className="w-12 h-12 animate-spin text-teal-500" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-teal-50 to-cyan-50 py-12 px-4">
+      <ToastContainer
+        position="top-right"
+        autoClose={5000}
+        hideProgressBar={false}
+        newestOnTop
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        theme="colored"
+      />
+
       <div className="max-w-7xl mx-auto">
         <div className="text-center mb-12">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-teal-600 to-teal-700 rounded-full mb-6 shadow-lg">
@@ -370,7 +400,7 @@ const SectionD = ({ onNext, onBack }) => {
             Section D: Infrastructure
           </h1>
           <p className="text-xl text-gray-700 max-w-4xl mx-auto leading-relaxed">
-            Provide detailed information about the institute's infrastructure, including campus facilities, library, hostels, and more.
+            Provide detailed information about the institute's infrastructure for the academic year.
           </p>
         </div>
 
@@ -387,464 +417,503 @@ const SectionD = ({ onNext, onBack }) => {
           </div>
         )}
 
-        <div className="space-y-8">
-          <div className="bg-white rounded-2xl shadow-xl border border-teal-100 overflow-hidden">
-            <div className="bg-gradient-to-r from-teal-600 to-teal-700 px-8 py-6">
-              <h2 className="text-2xl font-bold text-white mb-2">General Infrastructure Details</h2>
-              <p className="text-teal-100">Provide details about campus area, facilities, and services.</p>
-            </div>
-            <div className="p-8">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-900 mb-2">Campus area (in sq. Feet)</label>
-                  <input
-                    type="number"
-                    value={generalData.campusArea}
-                    onChange={(e) => handleGeneralChange('campusArea', e.target.value)}
-                    placeholder="Enter area"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-900 mb-2">Total built-up area (in sq. Feet)</label>
-                  <input
-                    type="number"
-                    value={generalData.totalBuiltUpArea}
-                    onChange={(e) => handleGeneralChange('totalBuiltUpArea', e.target.value)}
-                    placeholder="Enter area"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-900 mb-2">No. of Classrooms</label>
-                  <input
-                    type="number"
-                    value={generalData.noClassrooms}
-                    onChange={(e) => handleGeneralChange('noClassrooms', e.target.value)}
-                    placeholder="Enter number"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-900 mb-2">No. of Laboratories</label>
-                  <input
-                    type="number"
-                    value={generalData.noLaboratories}
-                    onChange={(e) => handleGeneralChange('noLaboratories', e.target.value)}
-                    placeholder="Enter number"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-900 mb-2">No. of Faculty cabins</label>
-                  <input
-                    type="number"
-                    value={generalData.noFacultyCabins}
-                    onChange={(e) => handleGeneralChange('noFacultyCabins', e.target.value)}
-                    placeholder="Enter number"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-900 mb-2">No. of Conference/Discussion halls</label>
-                  <input
-                    type="number"
-                    value={generalData.noConferenceHalls}
-                    onChange={(e) => handleGeneralChange('noConferenceHalls', e.target.value)}
-                    placeholder="Enter number"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-900 mb-2">No. of Auditoriums</label>
-                  <input
-                    type="number"
-                    value={generalData.noAuditoriums}
-                    onChange={(e) => handleGeneralChange('noAuditoriums', e.target.value)}
-                    placeholder="Enter number"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-900 mb-2">Student computer ratio</label>
-                  <input
-                    type="text"
-                    value={generalData.studentComputerRatio}
-                    onChange={(e) => handleGeneralChange('studentComputerRatio', e.target.value)}
-                    placeholder="Enter ratio (e.g., 1:10)"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500"
-                  />
-                </div>
+        <form onSubmit={handleSubmit}>
+          <div className="space-y-8">
+            {/* General Infrastructure Details */}
+            <div className="bg-white rounded-2xl shadow-xl border border-teal-100 overflow-hidden">
+              <div className="bg-gradient-to-r from-teal-600 to-teal-700 px-8 py-6">
+                <h2 className="text-2xl font-bold text-white mb-2">General Infrastructure Details</h2>
+                <p className="text-teal-100">Provide details about campus area, facilities, and services.</p>
               </div>
-
-              <div className="space-y-6">
-                <div className="bg-gray-50 p-6 rounded-lg">
-                  <label className="block text-sm font-semibold text-gray-900 mb-3">Availability of STP Plant</label>
-                  <div className="flex items-center space-x-6 mb-3">
-                    <label className="flex items-center">
-                      <input
-                        type="radio"
-                        name="stp"
-                        value="yes"
-                        checked={hasSTP === 'yes'}
-                        onChange={(e) => setHasSTP(e.target.value)}
-                        className="form-radio h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300"
-                      />
-                      <span className="ml-2 text-gray-700">Yes</span>
-                    </label>
-                    <label className="flex items-center">
-                      <input
-                        type="radio"
-                        name="stp"
-                        value="no"
-                        checked={hasSTP === 'no'}
-                        onChange={(e) => setHasSTP(e.target.value)}
-                        className="form-radio h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300"
-                      />
-                      <span className="ml-2 text-gray-700">No</span>
-                    </label>
+              <div className="p-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-900 mb-2">Campus area (in sq. Feet)</label>
+                    <input
+                      type="number"
+                      value={generalData.campusArea}
+                      onChange={(e) => handleGeneralChange('campusArea', e.target.value)}
+                      placeholder="Enter area"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500"
+                      required
+                    />
                   </div>
-                  {hasSTP === 'yes' && (
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-900 mb-2">Total built-up area (in sq. Feet)</label>
+                    <input
+                      type="number"
+                      value={generalData.totalBuiltUpArea}
+                      onChange={(e) => handleGeneralChange('totalBuiltUpArea', e.target.value)}
+                      placeholder="Enter area"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-900 mb-2">No. of Classrooms</label>
+                    <input
+                      type="number"
+                      value={generalData.noClassrooms}
+                      onChange={(e) => handleGeneralChange('noClassrooms', e.target.value)}
+                      placeholder="Enter number"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-900 mb-2">No. of Laboratories</label>
+                    <input
+                      type="number"
+                      value={generalData.noLaboratories}
+                      onChange={(e) => handleGeneralChange('noLaboratories', e.target.value)}
+                      placeholder="Enter number"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-900 mb-2">No. of Faculty cabins</label>
+                    <input
+                      type="number"
+                      value={generalData.noFacultyCabins}
+                      onChange={(e) => handleGeneralChange('noFacultyCabins', e.target.value)}
+                      placeholder="Enter number"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-900 mb-2">No. of Conference/Discussion halls</label>
+                    <input
+                      type="number"
+                      value={generalData.noConferenceHalls}
+                      onChange={(e) => handleGeneralChange('noConferenceHalls', e.target.value)}
+                      placeholder="Enter number"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-900 mb-2">No. of Auditoriums</label>
+                    <input
+                      type="number"
+                      value={generalData.noAuditoriums}
+                      onChange={(e) => handleGeneralChange('noAuditoriums', e.target.value)}
+                      placeholder="Enter number"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-900 mb-2">Student computer ratio</label>
                     <input
                       type="text"
-                      value={generalData.stpDetails}
-                      onChange={(e) => handleGeneralChange('stpDetails', e.target.value)}
-                      placeholder="Enter per day outcome link"
+                      value={generalData.studentComputerRatio}
+                      onChange={(e) => handleGeneralChange('studentComputerRatio', e.target.value)}
+                      placeholder="Enter ratio (e.g., 1:10)"
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500"
+                      required
                     />
-                  )}
-                </div>
-
-                <div className="bg-gray-50 p-6 rounded-lg">
-                  <label className="block text-sm font-semibold text-gray-900 mb-3">Does your institute have MoU for Waste disposal?</label>
-                  <div className="flex items-center space-x-6">
-                    <label className="flex items-center">
-                      <input
-                        type="radio"
-                        name="waste"
-                        value="yes"
-                        checked={generalData.moUWasteDisposal === 'yes'}
-                        onChange={(e) => handleGeneralChange('moUWasteDisposal', e.target.value)}
-                        className="form-radio h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300"
-                      />
-                      <span className="ml-2 text-gray-700">Yes</span>
-                    </label>
-                    <label className="flex items-center">
-                      <input
-                        type="radio"
-                        name="waste"
-                        value="no"
-                        checked={generalData.moUWasteDisposal === 'no'}
-                        onChange={(e) => handleGeneralChange('moUWasteDisposal', e.target.value)}
-                        className="form-radio h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300"
-                      />
-                      <span className="ml-2 text-gray-700">No</span>
-                    </label>
                   </div>
                 </div>
 
-                <div className="bg-gray-50 p-6 rounded-lg">
-                  <label className="block text-sm font-semibold text-gray-900 mb-3">Does the institute have NSS?</label>
-                  <div className="flex items-center space-x-6">
-                    <label className="flex items-center">
+                <div className="space-y-6">
+                  <div className="bg-gray-50 p-6 rounded-lg">
+                    <label className="block text-sm font-semibold text-gray-900 mb-3">Availability of STP Plant</label>
+                    <div className="flex items-center space-x-6 mb-3">
+                      <label className="flex items-center">
+                        <input
+                          type="radio"
+                          name="stp"
+                          value="yes"
+                          checked={hasSTP === 'yes'}
+                          onChange={(e) => setHasSTP(e.target.value)}
+                          className="form-radio h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300"
+                          required
+                        />
+                        <span className="ml-2 text-gray-700">Yes</span>
+                      </label>
+                      <label className="flex items-center">
+                        <input
+                          type="radio"
+                          name="stp"
+                          value="no"
+                          checked={hasSTP === 'no'}
+                          onChange={(e) => setHasSTP(e.target.value)}
+                          className="form-radio h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300"
+                          required
+                        />
+                        <span className="ml-2 text-gray-700">No</span>
+                      </label>
+                    </div>
+                    {hasSTP === 'yes' && (
                       <input
-                        type="radio"
-                        name="nss"
-                        value="yes"
-                        checked={generalData.hasNSS === 'yes'}
-                        onChange={(e) => handleGeneralChange('hasNSS', e.target.value)}
-                        className="form-radio h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300"
+                        type="text"
+                        value={generalData.stpDetails}
+                        onChange={(e) => handleGeneralChange('stpDetails', e.target.value)}
+                        placeholder="Enter per day outcome link"
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500"
+                        required
                       />
-                      <span className="ml-2 text-gray-700">Yes</span>
-                    </label>
-                    <label className="flex items-center">
-                      <input
-                        type="radio"
-                        name="nss"
-                        value="no"
-                        checked={generalData.hasNSS === 'no'}
-                        onChange={(e) => handleGeneralChange('hasNSS', e.target.value)}
-                        className="form-radio h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300"
-                      />
-                      <span className="ml-2 text-gray-700">No</span>
-                    </label>
+                    )}
                   </div>
-                </div>
 
-                <div className="bg-gray-50 p-6 rounded-lg">
-                  <label className="block text-sm font-semibold text-gray-900 mb-3">Does the institute have NCC?</label>
-                  <div className="flex items-center space-x-6">
-                    <label className="flex items-center">
-                      <input
-                        type="radio"
-                        name="ncc"
-                        value="yes"
-                        checked={generalData.hasNCC === 'yes'}
-                        onChange={(e) => handleGeneralChange('hasNCC', e.target.value)}
-                        className="form-radio h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300"
-                      />
-                      <span className="ml-2 text-gray-700">Yes</span>
-                    </label>
-                    <label className="flex items-center">
-                      <input
-                        type="radio"
-                        name="ncc"
-                        value="no"
-                        checked={generalData.hasNCC === 'no'}
-                        onChange={(e) => handleGeneralChange('hasNCC', e.target.value)}
-                        className="form-radio h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300"
-                      />
-                      <span className="ml-2 text-gray-700">No</span>
-                    </label>
+                  <div className="bg-gray-50 p-6 rounded-lg">
+                    <label className="block text-sm font-semibold text-gray-900 mb-3">Does your institute have MoU for Waste disposal?</label>
+                    <div className="flex items-center space-x-6">
+                      <label className="flex items-center">
+                        <input
+                          type="radio"
+                          name="waste"
+                          value="yes"
+                          checked={generalData.moUWasteDisposal === 'yes'}
+                          onChange={(e) => handleGeneralChange('moUWasteDisposal', e.target.value)}
+                          className="form-radio h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300"
+                          required
+                        />
+                        <span className="ml-2 text-gray-700">Yes</span>
+                      </label>
+                      <label className="flex items-center">
+                        <input
+                          type="radio"
+                          name="waste"
+                          value="no"
+                          checked={generalData.moUWasteDisposal === 'no'}
+                          onChange={(e) => handleGeneralChange('moUWasteDisposal', e.target.value)}
+                          className="form-radio h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300"
+                          required
+                        />
+                        <span className="ml-2 text-gray-700">No</span>
+                      </label>
+                    </div>
                   </div>
-                </div>
 
-                <div>
-                  <label className="block text-sm font-semibold text-gray-900 mb-2">List the cells/committees available (Anti-Ragging, ICC, etc.)</label>
-                  <input
-                    type="text"
-                    value={generalData.cellsCommittees}
-                    onChange={(e) => handleGeneralChange('cellsCommittees', e.target.value)}
-                    placeholder="Enter link or list"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500"
-                  />
-                </div>
-
-                <div className="bg-gray-50 p-6 rounded-lg">
-                  <label className="block text-sm font-semibold text-gray-900 mb-3">Does the institute have ATM?</label>
-                  <div className="flex items-center space-x-6">
-                    <label className="flex items-center">
-                      <input
-                        type="radio"
-                        name="atm"
-                        value="yes"
-                        checked={generalData.hasATM === 'yes'}
-                        onChange={(e) => handleGeneralChange('hasATM', e.target.value)}
-                        className="form-radio h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300"
-                      />
-                      <span className="ml-2 text-gray-700">Yes</span>
-                    </label>
-                    <label className="flex items-center">
-                      <input
-                        type="radio"
-                        name="atm"
-                        value="no"
-                        checked={generalData.hasATM === 'no'}
-                        onChange={(e) => handleGeneralChange('hasATM', e.target.value)}
-                        className="form-radio h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300"
-                      />
-                      <span className="ml-2 text-gray-700">No</span>
-                    </label>
+                  <div className="bg-gray-50 p-6 rounded-lg">
+                    <label className="block text-sm font-semibold text-gray-900 mb-3">Does the institute have NSS?</label>
+                    <div className="flex items-center space-x-6">
+                      <label className="flex items-center">
+                        <input
+                          type="radio"
+                          name="nss"
+                          value="yes"
+                          checked={generalData.hasNSS === 'yes'}
+                          onChange={(e) => handleGeneralChange('hasNSS', e.target.value)}
+                          className="form-radio h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300"
+                          required
+                        />
+                        <span className="ml-2 text-gray-700">Yes</span>
+                      </label>
+                      <label className="flex items-center">
+                        <input
+                          type="radio"
+                          name="nss"
+                          value="no"
+                          checked={generalData.hasNSS === 'no'}
+                          onChange={(e) => handleGeneralChange('hasNSS', e.target.value)}
+                          className="form-radio h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300"
+                          required
+                        />
+                        <span className="ml-2 text-gray-700">No</span>
+                      </label>
+                    </div>
                   </div>
-                </div>
 
-                <div className="bg-gray-50 p-6 rounded-lg">
-                  <label className="block text-sm font-semibold text-gray-900 mb-3">Does the institute have Wi-Fi?</label>
-                  <div className="flex items-center space-x-6 mb-3">
-                    <label className="flex items-center">
-                      <input
-                        type="radio"
-                        name="wifi"
-                        value="yes"
-                        checked={hasWiFi === 'yes'}
-                        onChange={(e) => setHasWiFi(e.target.value)}
-                        className="form-radio h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300"
-                      />
-                      <span className="ml-2 text-gray-700">Yes</span>
-                    </label>
-                    <label className="flex items-center">
-                      <input
-                        type="radio"
-                        name="wifi"
-                        value="no"
-                        checked={hasWiFi === 'no'}
-                        onChange={(e) => setHasWiFi(e.target.value)}
-                        className="form-radio h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300"
-                      />
-                      <span className="ml-2 text-gray-700">No</span>
-                    </label>
+                  <div className="bg-gray-50 p-6 rounded-lg">
+                    <label className="block text-sm font-semibold text-gray-900 mb-3">Does the institute have NCC?</label>
+                    <div className="flex items-center space-x-6">
+                      <label className="flex items-center">
+                        <input
+                          type="radio"
+                          name="ncc"
+                          value="yes"
+                          checked={generalData.hasNCC === 'yes'}
+                          onChange={(e) => handleGeneralChange('hasNCC', e.target.value)}
+                          className="form-radio h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300"
+                          required
+                        />
+                        <span className="ml-2 text-gray-700">Yes</span>
+                      </label>
+                      <label className="flex items-center">
+                        <input
+                          type="radio"
+                          name="ncc"
+                          value="no"
+                          checked={generalData.hasNCC === 'no'}
+                          onChange={(e) => handleGeneralChange('hasNCC', e.target.value)}
+                          className="form-radio h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300"
+                          required
+                        />
+                        <span className="ml-2 text-gray-700">No</span>
+                      </label>
+                    </div>
                   </div>
-                  {hasWiFi === 'yes' && (
+
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-900 mb-2">List the cells/committees available (Anti-Ragging, ICC, etc.)</label>
                     <input
                       type="text"
-                      value={generalData.wifiDetails}
-                      onChange={(e) => handleGeneralChange('wifiDetails', e.target.value)}
-                      placeholder="Enter Wi-Fi specifications link"
+                      value={generalData.cellsCommittees}
+                      onChange={(e) => handleGeneralChange('cellsCommittees', e.target.value)}
+                      placeholder="Enter link or list"
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500"
+                      required
                     />
-                  )}
-                </div>
-
-                <div className="bg-gray-50 p-6 rounded-lg">
-                  <label className="block text-sm font-semibold text-gray-900 mb-3">Is your institute having IQAC?</label>
-                  <div className="flex items-center space-x-6 mb-3">
-                    <label className="flex items-center">
-                      <input
-                        type="radio"
-                        name="iqac"
-                        value="yes"
-                        checked={hasIQAC === 'yes'}
-                        onChange={(e) => setHasIQAC(e.target.value)}
-                        className="form-radio h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300"
-                      />
-                      <span className="ml-2 text-gray-700">Yes</span>
-                    </label>
-                    <label className="flex items-center">
-                      <input
-                        type="radio"
-                        name="iqac"
-                        value="no"
-                        checked={hasIQAC === 'no'}
-                        onChange={(e) => setHasIQAC(e.target.value)}
-                        className="form-radio h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300"
-                      />
-                      <span className="ml-2 text-gray-700">No</span>
-                    </label>
                   </div>
-                  {hasIQAC === 'yes' && (
-                    <input
-                      type="date"
-                      value={generalData.iqacEstablishmentDate}
-                      onChange={(e) => handleGeneralChange('iqacEstablishmentDate', e.target.value)}
-                      placeholder="Select date"
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500"
-                    />
-                  )}
+
+                  <div className="bg-gray-50 p-6 rounded-lg">
+                    <label className="block text-sm font-semibold text-gray-900 mb-3">Does the institute have ATM?</label>
+                    <div className="flex items-center space-x-6">
+                      <label className="flex items-center">
+                        <input
+                          type="radio"
+                          name="atm"
+                          value="yes"
+                          checked={generalData.hasATM === 'yes'}
+                          onChange={(e) => handleGeneralChange('hasATM', e.target.value)}
+                          className="form-radio h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300"
+                          required
+                        />
+                        <span className="ml-2 text-gray-700">Yes</span>
+                      </label>
+                      <label className="flex items-center">
+                        <input
+                          type="radio"
+                          name="atm"
+                          value="no"
+                          checked={generalData.hasATM === 'no'}
+                          onChange={(e) => handleGeneralChange('hasATM', e.target.value)}
+                          className="form-radio h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300"
+                          required
+                        />
+                        <span className="ml-2 text-gray-700">No</span>
+                      </label>
+                    </div>
+                  </div>
+
+                  <div className="bg-gray-50 p-6 rounded-lg">
+                    <label className="block text-sm font-semibold text-gray-900 mb-3">Does the institute have Wi-Fi?</label>
+                    <div className="flex items-center space-x-6 mb-3">
+                      <label className="flex items-center">
+                        <input
+                          type="radio"
+                          name="wifi"
+                          value="yes"
+                          checked={hasWiFi === 'yes'}
+                          onChange={(e) => setHasWiFi(e.target.value)}
+                          className="form-radio h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300"
+                          required
+                        />
+                        <span className="ml-2 text-gray-700">Yes</span>
+                      </label>
+                      <label className="flex items-center">
+                        <input
+                          type="radio"
+                          name="wifi"
+                          value="no"
+                          checked={hasWiFi === 'no'}
+                          onChange={(e) => setHasWiFi(e.target.value)}
+                          className="form-radio h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300"
+                          required
+                        />
+                        <span className="ml-2 text-gray-700">No</span>
+                      </label>
+                    </div>
+                    {hasWiFi === 'yes' && (
+                      <input
+                        type="text"
+                        value={generalData.wifiDetails}
+                        onChange={(e) => handleGeneralChange('wifiDetails', e.target.value)}
+                        placeholder="Enter Wi-Fi specifications link"
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500"
+                        required
+                      />
+                    )}
+                  </div>
+
+                  <div className="bg-gray-50 p-6 rounded-lg">
+                    <label className="block text-sm font-semibold text-gray-900 mb-3">Is your institute having IQAC?</label>
+                    <div className="flex items-center space-x-6 mb-3">
+                      <label className="flex items-center">
+                        <input
+                          type="radio"
+                          name="iqac"
+                          value="yes"
+                          checked={hasIQAC === 'yes'}
+                          onChange={(e) => setHasIQAC(e.target.value)}
+                          className="form-radio h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300"
+                          required
+                        />
+                        <span className="ml-2 text-gray-700">Yes</span>
+                      </label>
+                      <label className="flex items-center">
+                        <input
+                          type="radio"
+                          name="iqac"
+                          value="no"
+                          checked={hasIQAC === 'no'}
+                          onChange={(e) => setHasIQAC(e.target.value)}
+                          className="form-radio h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300"
+                          required
+                        />
+                        <span className="ml-2 text-gray-700">No</span>
+                      </label>
+                    </div>
+                    {hasIQAC === 'yes' && (
+                      <input
+                        type="date"
+                        value={generalData.iqacEstablishmentDate}
+                        onChange={(e) => handleGeneralChange('iqacEstablishmentDate', e.target.value)}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900"
+                        required
+                      />
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
 
-          <div className="bg-white rounded-2xl shadow-xl border border-teal-100 overflow-hidden">
-            <div className="bg-gradient-to-r from-teal-600 to-teal-700 px-8 py-6">
-              <h2 className="text-2xl font-bold text-white mb-2">Library Details</h2>
-              <p className="text-teal-100">Provide details about the central and department libraries.</p>
-            </div>
-            <div className="p-8">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-900 mb-2">Central Library (in sq. Feet)</label>
-                  <input
-                    type="number"
-                    value={libraryData.centralLibraryArea}
-                    onChange={(e) => handleLibraryChange('centralLibraryArea', e.target.value)}
-                    placeholder="Enter area"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500"
-                  />
+            {/* Library Details */}
+            <div className="bg-white rounded-2xl shadow-xl border border-teal-100 overflow-hidden">
+              <div className="bg-gradient-to-r from-teal-600 to-teal-700 px-8 py-6">
+                <h2 className="text-2xl font-bold text-white mb-2">Library Details</h2>
+                <p className="text-teal-100">Provide details about the central and department libraries.</p>
+              </div>
+              <div className="p-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-900 mb-2">Central Library (in sq. Feet)</label>
+                    <input
+                      type="number"
+                      value={libraryData.centralLibraryArea}
+                      onChange={(e) => handleLibraryChange('centralLibraryArea', e.target.value)}
+                      placeholder="Enter area"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-900 mb-2">No. of Volumes (Books)</label>
+                    <input
+                      type="number"
+                      value={libraryData.noVolumes}
+                      onChange={(e) => handleLibraryChange('noVolumes', e.target.value)}
+                      placeholder="Enter number"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-900 mb-2">No. of books added in last three years</label>
+                    <input
+                      type="number"
+                      value={libraryData.noBooksAddedLast3}
+                      onChange={(e) => handleLibraryChange('noBooksAddedLast3', e.target.value)}
+                      placeholder="Enter number"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-900 mb-2">No. of national & international journals (Printed)</label>
+                    <input
+                      type="number"
+                      value={libraryData.noPrintedJournals}
+                      onChange={(e) => handleLibraryChange('noPrintedJournals', e.target.value)}
+                      placeholder="Enter number"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-900 mb-2">No. of national & international journals (Online)</label>
+                    <input
+                      type="number"
+                      value={libraryData.noOnlineJournals}
+                      onChange={(e) => handleLibraryChange('noOnlineJournals', e.target.value)}
+                      placeholder="Enter number"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-900 mb-2">Average number of Faculty visits per month</label>
+                    <input
+                      type="number"
+                      value={libraryData.avgFacultyVisitsPerMonth}
+                      onChange={(e) => handleLibraryChange('avgFacultyVisitsPerMonth', e.target.value)}
+                      placeholder="Enter number"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-900 mb-2">Average number of Students visits per month</label>
+                    <input
+                      type="number"
+                      value={libraryData.avgStudentVisitsPerMonth}
+                      onChange={(e) => handleLibraryChange('avgStudentVisitsPerMonth', e.target.value)}
+                      placeholder="Enter number"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-900 mb-3">Availability of Digital Library</label>
+                    <div className="flex items-center space-x-6">
+                      <label className="flex items-center">
+                        <input
+                          type="radio"
+                          name="digital_library"
+                          value="yes"
+                          checked={libraryData.hasDigitalLibrary === 'yes'}
+                          onChange={(e) => handleLibraryChange('hasDigitalLibrary', e.target.value)}
+                          className="form-radio h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300"
+                          required
+                        />
+                        <span className="ml-2 text-gray-700">Yes</span>
+                      </label>
+                      <label className="flex items-center">
+                        <input
+                          type="radio"
+                          name="digital_library"
+                          value="no"
+                          checked={libraryData.hasDigitalLibrary === 'no'}
+                          onChange={(e) => handleLibraryChange('hasDigitalLibrary', e.target.value)}
+                          className="form-radio h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300"
+                          required
+                        />
+                        <span className="ml-2 text-gray-700">No</span>
+                      </label>
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-900 mb-2">No. of Volumes (Books)</label>
-                  <input
-                    type="number"
-                    value={libraryData.noVolumes}
-                    onChange={(e) => handleLibraryChange('noVolumes', e.target.value)}
-                    placeholder="Enter number"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-900 mb-2">No. of books added in last three years</label>
-                  <input
-                    type="number"
-                    value={libraryData.noBooksAddedLast3}
-                    onChange={(e) => handleLibraryChange('noBooksAddedLast3', e.target.value)}
-                    placeholder="Enter number"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-900 mb-2">No. of national & international journals (Printed)</label>
-                  <input
-                    type="number"
-                    value={libraryData.noPrintedJournals}
-                    onChange={(e) => handleLibraryChange('noPrintedJournals', e.target.value)}
-                    placeholder="Enter number"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-900 mb-2">No. of national & international journals (Online)</label>
-                  <input
-                    type="number"
-                    value={libraryData.noOnlineJournals}
-                    onChange={(e) => handleLibraryChange('noOnlineJournals', e.target.value)}
-                    placeholder="Enter number"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-900 mb-2">Average number of Faculty visits per month</label>
-                  <input
-                    type="number"
-                    value={libraryData.avgFacultyVisitsPerMonth}
-                    onChange={(e) => handleLibraryChange('avgFacultyVisitsPerMonth', e.target.value)}
-                    placeholder="Enter number"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-900 mb-2">Average number of Students visits per month</label>
-                  <input
-                    type="number"
-                    value={libraryData.avgStudentVisitsPerMonth}
-                    onChange={(e) => handleLibraryChange('avgStudentVisitsPerMonth', e.target.value)}
-                    placeholder="Enter number"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-900 mb-3">Availability of Digital Library</label>
+
+                <div className="mb-6">
+                  <label className="block text-sm font-semibold text-gray-900 mb-3">Availability of Department Library</label>
                   <div className="flex items-center space-x-6">
                     <label className="flex items-center">
                       <input
                         type="radio"
-                        name="digital_library"
+                        name="dept_library"
                         value="yes"
-                        checked={libraryData.hasDigitalLibrary === 'yes'}
-                        onChange={(e) => handleLibraryChange('hasDigitalLibrary', e.target.value)}
+                        checked={hasDeptLibrary === 'yes'}
+                        onChange={(e) => setHasDeptLibrary(e.target.value)}
                         className="form-radio h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300"
+                        required
                       />
                       <span className="ml-2 text-gray-700">Yes</span>
                     </label>
                     <label className="flex items-center">
                       <input
                         type="radio"
-                        name="digital_library"
+                        name="dept_library"
                         value="no"
-                        checked={libraryData.hasDigitalLibrary === 'no'}
-                        onChange={(e) => handleLibraryChange('hasDigitalLibrary', e.target.value)}
+                        checked={hasDeptLibrary === 'no'}
+                        onChange={(e) => setHasDeptLibrary(e.target.value)}
                         className="form-radio h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300"
+                        required
                       />
                       <span className="ml-2 text-gray-700">No</span>
-                    </label>
-                  </div>
-                </div>
-              </div>
-
-              <div className="mb-6">
-                <label className="block text-sm font-semibold text-gray-900 mb-3">Availability of Department Library</label>
-                <div className="flex items-center space-x-6">
-                  <label className="flex items-center">
-                    <input
-                      type="radio"
-                      name="dept_library"
-                      value="yes"
-                      checked={hasDeptLibrary === 'yes'}
-                      onChange={(e) => setHasDeptLibrary(e.target.value)}
-                      className="form-radio h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300"
-                    />
-                    <span className="ml-2 text-gray-700">Yes</span>
-                  </label>
-                  <label className="flex items-center">
-                    <input
-                      type="radio"
-                      name="dept_library"
-                      value="no"
-                      checked={hasDeptLibrary === 'no'}
-                      onChange={(e) => setHasDeptLibrary(e.target.value)}
-                      className="form-radio h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300"
-                    />
-                    <span className="ml-2 text-gray-700">No</span>
                     </label>
                   </div>
                 </div>
@@ -870,6 +939,7 @@ const SectionD = ({ onNext, onBack }) => {
                                 onChange={(e) => handleDeptLibraryChange(row.id, 'department', e.target.value)}
                                 placeholder="Enter department"
                                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500"
+                                required
                               />
                             </td>
                             <td className="py-4 px-4">
@@ -879,6 +949,7 @@ const SectionD = ({ onNext, onBack }) => {
                                 onChange={(e) => handleDeptLibraryChange(row.id, 'volumes', e.target.value)}
                                 placeholder="Enter number"
                                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500"
+                                required
                               />
                             </td>
                           </tr>
@@ -908,6 +979,7 @@ const SectionD = ({ onNext, onBack }) => {
               </div>
             </div>
 
+            {/* Hostel */}
             <div className="bg-white rounded-2xl shadow-xl border border-teal-100 overflow-hidden">
               <div className="bg-gradient-to-r from-teal-600 to-teal-700 px-8 py-6">
                 <h2 className="text-2xl font-bold text-white mb-2">Availability of Hostel</h2>
@@ -925,6 +997,7 @@ const SectionD = ({ onNext, onBack }) => {
                         checked={hasHostel === 'yes'}
                         onChange={(e) => setHasHostel(e.target.value)}
                         className="form-radio h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300"
+                        required
                       />
                       <span className="ml-2 text-gray-700">Yes</span>
                     </label>
@@ -936,6 +1009,7 @@ const SectionD = ({ onNext, onBack }) => {
                         checked={hasHostel === 'no'}
                         onChange={(e) => setHasHostel(e.target.value)}
                         className="form-radio h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300"
+                        required
                       />
                       <span className="ml-2 text-gray-700">No</span>
                     </label>
@@ -965,6 +1039,7 @@ const SectionD = ({ onNext, onBack }) => {
                               onChange={(e) => handleHostelChange('boys', 'noRooms', e.target.value)}
                               placeholder="Enter number"
                               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500"
+                              required
                             />
                           </td>
                           <td className="py-4 px-4">
@@ -974,6 +1049,7 @@ const SectionD = ({ onNext, onBack }) => {
                               onChange={(e) => handleHostelChange('boys', 'capacity', e.target.value)}
                               placeholder="Enter number"
                               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500"
+                              required
                             />
                           </td>
                           <td className="py-4 px-4">
@@ -983,6 +1059,7 @@ const SectionD = ({ onNext, onBack }) => {
                               onChange={(e) => handleHostelChange('boys', 'occupied', e.target.value)}
                               placeholder="Enter number"
                               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500"
+                              required
                             />
                           </td>
                         </tr>
@@ -996,6 +1073,7 @@ const SectionD = ({ onNext, onBack }) => {
                               onChange={(e) => handleHostelChange('girls', 'noRooms', e.target.value)}
                               placeholder="Enter number"
                               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500"
+                              required
                             />
                           </td>
                           <td className="py-4 px-4">
@@ -1005,6 +1083,7 @@ const SectionD = ({ onNext, onBack }) => {
                               onChange={(e) => handleHostelChange('girls', 'capacity', e.target.value)}
                               placeholder="Enter number"
                               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500"
+                              required
                             />
                           </td>
                           <td className="py-4 px-4">
@@ -1014,6 +1093,7 @@ const SectionD = ({ onNext, onBack }) => {
                               onChange={(e) => handleHostelChange('girls', 'occupied', e.target.value)}
                               placeholder="Enter number"
                               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500"
+                              required
                             />
                           </td>
                         </tr>
@@ -1052,6 +1132,7 @@ const SectionD = ({ onNext, onBack }) => {
               </div>
             </div>
 
+            {/* Faculty Quarters */}
             <div className="bg-white rounded-2xl shadow-xl border border-teal-100 overflow-hidden">
               <div className="bg-gradient-to-r from-teal-600 to-teal-700 px-8 py-6">
                 <h2 className="text-2xl font-bold text-white mb-2">Availability of Faculty Quarters</h2>
@@ -1069,6 +1150,7 @@ const SectionD = ({ onNext, onBack }) => {
                         checked={hasFacultyQuarters === 'yes'}
                         onChange={(e) => setHasFacultyQuarters(e.target.value)}
                         className="form-radio h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300"
+                        required
                       />
                       <span className="ml-2 text-gray-700">Yes</span>
                     </label>
@@ -1080,6 +1162,7 @@ const SectionD = ({ onNext, onBack }) => {
                         checked={hasFacultyQuarters === 'no'}
                         onChange={(e) => setHasFacultyQuarters(e.target.value)}
                         className="form-radio h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300"
+                        required
                       />
                       <span className="ml-2 text-gray-700">No</span>
                     </label>
@@ -1108,6 +1191,7 @@ const SectionD = ({ onNext, onBack }) => {
                               onChange={(e) => handleFacultyQuartersChange('noQuarters', e.target.value)}
                               placeholder="Enter number"
                               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500"
+                              required
                             />
                           </td>
                           <td className="py-4 px-4">
@@ -1117,6 +1201,7 @@ const SectionD = ({ onNext, onBack }) => {
                               onChange={(e) => handleFacultyQuartersChange('occupied', e.target.value)}
                               placeholder="Enter number"
                               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500"
+                              required
                             />
                           </td>
                         </tr>
@@ -1127,6 +1212,7 @@ const SectionD = ({ onNext, onBack }) => {
               </div>
             </div>
 
+            {/* Guest Rooms */}
             <div className="bg-white rounded-2xl shadow-xl border border-teal-100 overflow-hidden">
               <div className="bg-gradient-to-r from-teal-600 to-teal-700 px-8 py-6">
                 <h2 className="text-2xl font-bold text-white mb-2">Availability of Guest Rooms / Common Rooms</h2>
@@ -1153,6 +1239,7 @@ const SectionD = ({ onNext, onBack }) => {
                             onChange={(e) => handleGuestRoomsChange('guestRooms', e.target.value)}
                             placeholder="Enter number"
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500"
+                            required
                           />
                         </td>
                       </tr>
@@ -1166,6 +1253,7 @@ const SectionD = ({ onNext, onBack }) => {
                             onChange={(e) => handleGuestRoomsChange('commonBoys', e.target.value)}
                             placeholder="Enter number"
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500"
+                            required
                           />
                         </td>
                       </tr>
@@ -1179,6 +1267,7 @@ const SectionD = ({ onNext, onBack }) => {
                             onChange={(e) => handleGuestRoomsChange('commonGirls', e.target.value)}
                             placeholder="Enter number"
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500"
+                            required
                           />
                         </td>
                       </tr>
@@ -1188,6 +1277,7 @@ const SectionD = ({ onNext, onBack }) => {
               </div>
             </div>
 
+            {/* Medical Facilities */}
             <div className="bg-white rounded-2xl shadow-xl border border-teal-100 overflow-hidden">
               <div className="bg-gradient-to-r from-teal-600 to-teal-700 px-8 py-6">
                 <h2 className="text-2xl font-bold text-white mb-2">Availability of Medical Facilities</h2>
@@ -1217,6 +1307,7 @@ const SectionD = ({ onNext, onBack }) => {
                                 checked={medicalFacilitiesData.registeredPractitioner === 'yes'}
                                 onChange={(e) => handleMedicalFacilitiesChange('registeredPractitioner', e.target.value)}
                                 className="form-radio h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300"
+                                required
                               />
                               <span className="ml-2 text-gray-700">Yes</span>
                             </label>
@@ -1228,6 +1319,7 @@ const SectionD = ({ onNext, onBack }) => {
                                 checked={medicalFacilitiesData.registeredPractitioner === 'no'}
                                 onChange={(e) => handleMedicalFacilitiesChange('registeredPractitioner', e.target.value)}
                                 className="form-radio h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300"
+                                required
                               />
                               <span className="ml-2 text-gray-700">No</span>
                             </label>
@@ -1247,6 +1339,7 @@ const SectionD = ({ onNext, onBack }) => {
                                 checked={medicalFacilitiesData.nursingAssistant === 'yes'}
                                 onChange={(e) => handleMedicalFacilitiesChange('nursingAssistant', e.target.value)}
                                 className="form-radio h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300"
+                                required
                               />
                               <span className="ml-2 text-gray-700">Yes</span>
                             </label>
@@ -1258,6 +1351,7 @@ const SectionD = ({ onNext, onBack }) => {
                                 checked={medicalFacilitiesData.nursingAssistant === 'no'}
                                 onChange={(e) => handleMedicalFacilitiesChange('nursingAssistant', e.target.value)}
                                 className="form-radio h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300"
+                                required
                               />
                               <span className="ml-2 text-gray-700">No</span>
                             </label>
@@ -1277,6 +1371,7 @@ const SectionD = ({ onNext, onBack }) => {
                                 checked={medicalFacilitiesData.emergencyMedicines === 'yes'}
                                 onChange={(e) => handleMedicalFacilitiesChange('emergencyMedicines', e.target.value)}
                                 className="form-radio h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300"
+                                required
                               />
                               <span className="ml-2 text-gray-700">Yes</span>
                             </label>
@@ -1288,6 +1383,7 @@ const SectionD = ({ onNext, onBack }) => {
                                 checked={medicalFacilitiesData.emergencyMedicines === 'no'}
                                 onChange={(e) => handleMedicalFacilitiesChange('emergencyMedicines', e.target.value)}
                                 className="form-radio h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300"
+                                required
                               />
                               <span className="ml-2 text-gray-700">No</span>
                             </label>
@@ -1300,6 +1396,7 @@ const SectionD = ({ onNext, onBack }) => {
               </div>
             </div>
 
+            {/* Sustainability Initiatives */}
             <div className="bg-white rounded-2xl shadow-xl border border-teal-100 overflow-hidden">
               <div className="bg-gradient-to-r from-teal-600 to-teal-700 px-8 py-6">
                 <h2 className="text-2xl font-bold text-white mb-2">Sustainability Initiatives</h2>
@@ -1318,6 +1415,7 @@ const SectionD = ({ onNext, onBack }) => {
                           checked={hasSolar === 'yes'}
                           onChange={(e) => setHasSolar(e.target.value)}
                           className="form-radio h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300"
+                          required
                         />
                         <span className="ml-2 text-gray-700">Yes</span>
                       </label>
@@ -1329,6 +1427,7 @@ const SectionD = ({ onNext, onBack }) => {
                           checked={hasSolar === 'no'}
                           onChange={(e) => setHasSolar(e.target.value)}
                           className="form-radio h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300"
+                          required
                         />
                         <span className="ml-2 text-gray-700">No</span>
                       </label>
@@ -1340,6 +1439,7 @@ const SectionD = ({ onNext, onBack }) => {
                         onChange={(e) => handleSustainabilityChange('solarDetails', e.target.value)}
                         placeholder="Enter solar power initiatives link"
                         className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500"
+                        required
                       />
                     )}
                   </div>
@@ -1354,6 +1454,7 @@ const SectionD = ({ onNext, onBack }) => {
                           checked={hasSustainability === 'yes'}
                           onChange={(e) => setHasSustainability(e.target.value)}
                           className="form-radio h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300"
+                          required
                         />
                         <span className="ml-2 text-gray-700">Yes</span>
                       </label>
@@ -1365,6 +1466,7 @@ const SectionD = ({ onNext, onBack }) => {
                           checked={hasSustainability === 'no'}
                           onChange={(e) => setHasSustainability(e.target.value)}
                           className="form-radio h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300"
+                          required
                         />
                         <span className="ml-2 text-gray-700">No</span>
                       </label>
@@ -1376,6 +1478,7 @@ const SectionD = ({ onNext, onBack }) => {
                         onChange={(e) => handleSustainabilityChange('sustainabilityDetails', e.target.value)}
                         placeholder="Enter sustainable development initiatives link"
                         className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500"
+                        required
                       />
                     )}
                   </div>
@@ -1383,6 +1486,7 @@ const SectionD = ({ onNext, onBack }) => {
               </div>
             </div>
 
+            {/* Sports Facilities */}
             <div className="bg-white rounded-2xl shadow-xl border border-teal-100 overflow-hidden">
               <div className="bg-gradient-to-r from-teal-600 to-teal-700 px-8 py-6">
                 <h2 className="text-2xl font-bold text-white mb-2">Availability of Sports Facilities</h2>
@@ -1400,6 +1504,7 @@ const SectionD = ({ onNext, onBack }) => {
                         checked={hasSportsFacilities === 'yes'}
                         onChange={(e) => setHasSportsFacilities(e.target.value)}
                         className="form-radio h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300"
+                        required
                       />
                       <span className="ml-2 text-gray-700">Yes</span>
                     </label>
@@ -1411,6 +1516,7 @@ const SectionD = ({ onNext, onBack }) => {
                         checked={hasSportsFacilities === 'no'}
                         onChange={(e) => setHasSportsFacilities(e.target.value)}
                         className="form-radio h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300"
+                        required
                       />
                       <span className="ml-2 text-gray-700">No</span>
                     </label>
@@ -1438,6 +1544,7 @@ const SectionD = ({ onNext, onBack }) => {
                                 onChange={(e) => handleSportsChange(row.id, 'particular', e.target.value)}
                                 placeholder="Enter particulars"
                                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500"
+                                required
                               />
                             </td>
                             <td className="py-4 px-4">
@@ -1447,6 +1554,7 @@ const SectionD = ({ onNext, onBack }) => {
                                 onChange={(e) => handleSportsChange(row.id, 'area', e.target.value)}
                                 placeholder="Enter area"
                                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500"
+                                required
                               />
                             </td>
                           </tr>
@@ -1476,64 +1584,61 @@ const SectionD = ({ onNext, onBack }) => {
               </div>
             </div>
 
+            {/* Drive Link */}
             <div className="bg-white rounded-2xl shadow-xl border border-teal-100 overflow-hidden">
               <div className="bg-gradient-to-r from-teal-600 to-teal-700 px-8 py-6">
                 <h2 className="text-2xl font-bold text-white mb-2">Supporting Documents</h2>
-                <p className="text-teal-100">Provide a drive link for supporting documents.</p>
+                <p className="text-teal-100">Provide a Google Drive link for supporting documents.</p>
               </div>
               <div className="p-8">
                 <div>
-                  <label className="block text-sm font-semibold text-gray-900 mb-2">Drive Link for Supporting Documents</label>
+                  <label className="block text-sm font-semibold text-gray-900 mb-2">
+                    Google Drive Link for Section D Documents
+                  </label>
                   <input
-                    type="text"
+                    type="url"
                     value={sectionDDriveLink}
                     onChange={(e) => setSectionDDriveLink(e.target.value)}
                     placeholder="Enter Google Drive link"
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500"
+                    required
                   />
                 </div>
               </div>
             </div>
 
-          <div className="flex justify-between items-center pt-8">
-            {onBack && (
-              <button type="button" className="flex items-center bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-3 px-6 rounded-lg transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2" onClick={handleBack}>
+            {/* Navigation Buttons */}
+            <div className="flex justify-between mt-12">
+              <button
+                type="button"
+                onClick={onBack}
+                className="inline-flex items-center px-6 py-3 bg-gray-600 text-white font-semibold rounded-lg hover:bg-gray-700 transition-colors duration-200"
+              >
                 <ChevronLeft className="w-5 h-5 mr-2" />
                 Back to Section C
               </button>
-            )}
-            
-<div className="flex space-x-4 ml-auto">
               <button
-                type="button"
-                className="flex items-center bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-700 hover:to-teal-800 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-200 transform hover:scale-105 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                type="submit"
                 disabled={loading}
-                onClick={handleSubmit}
+                className={`inline-flex items-center px-6 py-3 bg-teal-600 text-white font-semibold rounded-lg hover:bg-teal-700 transition-colors duration-200 ${
+                  loading ? 'opacity-50 cursor-not-allowed' : ''
+                }`}
               >
                 {loading ? (
-                  <div className="flex items-center">
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                  <>
+                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
                     Saving...
-                  </div>
+                  </>
                 ) : (
                   <>
-                    Save and Continue to Section E
+                    Save and continue to Section E
                     <ChevronRight className="w-5 h-5 ml-2" />
                   </>
                 )}
               </button>
             </div>
           </div>
-
-          <div className="text-center mt-12 pt-8 border-t border-teal-200">
-            <p className="text-gray-600">
-              Need help? Contact our support team at{" "}
-              <a href="mailto:founderqae@gmail.com" className="text-teal-600 hover:text-teal-700 font-medium">
-                founderqae@gmail.com
-              </a>
-            </p>
-          </div>
-        </div>
+        </form>
       </div>
     </div>
   );

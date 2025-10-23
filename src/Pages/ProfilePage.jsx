@@ -21,7 +21,7 @@ const ProfilePage = () => {
   useEffect(() => {
     const fetchUserData = async () => {
       try {
-        const response = await fetch('https://qae-server.vercel.app/api/institution/current-user', {
+        const response = await fetch('https://qae-server.vercel.app/api/section-a/current-user', {
           headers: {
             Authorization: `Bearer ${localStorage.getItem('token')}`, // Assuming token is stored in localStorage
           },
@@ -50,13 +50,13 @@ const ProfilePage = () => {
         setUserData({
           username: data.username || 'N/A',
           email: data.email || 'N/A',
-          institutionName: data.institute?.name || 'N/A',
+          institutionName: data.institute?.sectionA?.name || 'N/A',
           institutionType: data.institutionType || 'N/A',
           memberSince,
           lastLogin,
-          phone: data.institute?.applicantContact || 'N/A',
-          designation: data.institute?.applicantDesignation || 'N/A',
-          address: data.institute?.address || 'N/A',
+          phone: data.institute?.sectionA?.applicantContact || 'N/A',
+          designation: data.institute?.sectionA?.applicantDesignation || 'N/A',
+          address: data.institute?.sectionA?.address || 'N/A',
         });
       } catch (err) {
         setError(err.message);

@@ -7,12 +7,15 @@ const Submissions = () => {
   const navigate = useNavigate();
   const [submissions, setSubmissions] = useState([]);
   const [institutionName, setInstitutionName] = useState('');
-  const [isLoading, setIsLoading] = useState(true); // Added loading state
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Get the current year
+  const currentYear = new Date().getFullYear().toString();
 
   useEffect(() => {
     const fetchSubmissions = async () => {
       try {
-        setIsLoading(true); // Set loading to true before fetching
+        setIsLoading(true);
         const response = await axios.get('https://qae-server.vercel.app/api/submit/submissions', {
           headers: {
             Authorization: `Bearer ${localStorage.getItem('token')}`,
@@ -31,7 +34,7 @@ const Submissions = () => {
       } catch (error) {
         console.error('Error fetching submissions:', error);
       } finally {
-        setIsLoading(false); // Set loading to false after fetching
+        setIsLoading(false);
       }
     };
 
@@ -119,13 +122,17 @@ const Submissions = () => {
                     </div>
                   </td>
                   <td className="px-4 py-4">
-                    <button 
-                      onClick={() => handleViewDetails(submission.id, submission.year)}
-                      className="inline-flex items-center gap-2 bg-gradient-to-r from-teal-700 to-teal-600 text-white px-4 py-2 rounded-lg font-semibold text-sm hover:from-teal-800 hover:to-teal-700"
-                    >
-                      View Details
-                      <ExternalLink className="w-4 h-4" />
-                    </button>
+                    {submission.year === currentYear ? (
+                      <button 
+                        onClick={() => handleViewDetails(submission.id, submission.year)}
+                        className="inline-flex items-center gap-2 bg-gradient-to-r from-teal-700 to-teal-600 text-white px-4 py-2 rounded-lg font-semibold text-sm hover:from-teal-800 hover:to-teal-700"
+                      >
+                        View Details
+                        <ExternalLink className="w-4 h-4" />
+                      </button>
+                    ) : (
+                      <span className="text-gray-500">-</span>
+                    )}
                   </td>
                 </tr>
               ))}

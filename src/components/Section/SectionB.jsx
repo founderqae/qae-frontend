@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import axios from 'axios';
+import { toast, ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 const SectionB = ({ onNext, onBack }) => {
   const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(null);
   const [years, setYears] = useState([]);
   const [genderData, setGenderData] = useState({
     male: {},
@@ -32,13 +33,12 @@ const SectionB = ({ onNext, onBack }) => {
     perStudentExpenditure: '',
   });
   const [sectionBDriveLink, setSectionBDriveLink] = useState('');
-  const [error, setError] = useState(null);
 
   const getAuthHeader = () => {
     const token = localStorage.getItem('token');
     if (!token) {
       console.error('No token found in localStorage');
-      setError('Please log in to access this section');
+      toast.error('Please log in to access this section');
       return {};
     }
     return { Authorization: `Bearer ${token}` };
@@ -51,7 +51,7 @@ const SectionB = ({ onNext, onBack }) => {
       const response = await axios.get('https://qae-server.vercel.app/api/config/year', {
         headers: getAuthHeader(),
       });
-      console.log('Year Config Response:', response.data); // Debug log
+      console.log('Year Config Response:', response.data);
       const config = response.data;
       if (!config.p || !config.pMinus1 || !config.pMinus2) {
         throw new Error('Invalid year configuration data');
@@ -80,20 +80,20 @@ const SectionB = ({ onNext, onBack }) => {
         await new Promise(resolve => setTimeout(resolve, delay));
         return fetchYearConfig(retryCount - 1, delay * 2);
       }
-      setError(err.response?.data?.message || 'Failed to fetch year configuration. Please try again later.');
+      toast.error(err.response?.data?.message || 'Failed to fetch year configuration. Please try again later.');
     } finally {
       setLoading(false);
     }
   };
-
+const currentYear = new Date().getFullYear();
   // Fetch existing Section B data
   const fetchSectionBData = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('https://qae-server.vercel.app/api/submit/submissions/section-b', {
+      const response = await axios.get(`https://qae-server.vercel.app/api/submit/submissions/section-b?year=${currentYear}`, {
         headers: getAuthHeader(),
       });
-      console.log('Section B Data Response:', response.data); // Debug log
+      console.log('Section B Data Response:', response.data);
       const data = response.data;
 
       const transformToObject = (arr, keys) => {
@@ -157,7 +157,7 @@ const SectionB = ({ onNext, onBack }) => {
         status: err.response?.status,
       });
       if (err.response?.status !== 404) {
-        setError(err.response?.data?.message || 'Failed to fetch Section B data');
+        // toast.error(err.response?.data?.message || 'Failed to fetch Section B data');
       }
     } finally {
       setLoading(false);
@@ -228,19 +228,26 @@ const SectionB = ({ onNext, onBack }) => {
     ]);
   };
 
+  // Remove last row from Exam Scores table
+  const removeExamRow = () => {
+    if (examRows.length > 2) {
+      setExamRows(prev => prev.slice(0, -1));
+    }
+  };
+
   // Validate form data before submission
   const validateForm = () => {
     if (!sectionBDriveLink || !/^(https?:\/\/)/.test(sectionBDriveLink)) {
-      setError('Please provide a valid Google Drive link');
+      toast.error('Please provide a valid Google Drive link');
       return false;
     }
     for (const row of examRows) {
       if (row.department && !row.examName) {
-        setError('Exam name is required for all departments');
+        toast.error('Exam name is required for all departments');
         return false;
       }
       if ((row.highestRank || row.lowestRank) && (!row.department || !row.examName)) {
-        setError('Department and exam name are required if ranks are provided');
+        toast.error('Department and exam name are required if ranks are provided');
         return false;
       }
     }
@@ -258,12 +265,11 @@ const SectionB = ({ onNext, onBack }) => {
     });
   };
 
-  // Handle submit and continue
-  const handleSubmitAndContinue = async () => {
+  // Handle form submission
+  const handleSubmit = async (e) => {
+    e.preventDefault();
     if (!validateForm()) return;
     setLoading(true);
-    setError(null);
-    setSuccess(null);
     try {
       const genderInfos = transformToArray(genderData, ['male', 'female', 'transgender']);
       const diversityInfos = transformToArray(diversityData, ['interstate', 'intrastate', 'overseas']);
@@ -307,54 +313,46 @@ const SectionB = ({ onNext, onBack }) => {
         }
       }
 
-      setSuccess('Section B submitted successfully');
-      if (onNext) onNext(); // Proceed to next section after successful save
+      setTimeout(() => {
+        if (onNext) onNext();
+      }, 2000);
+      toast.success('Section B submitted successfully');
     } catch (err) {
       console.error('Submit Section B Error:', {
         message: err.message,
         response: err.response?.data,
         status: err.response?.status,
       });
-      setError(err.response?.data?.message || 'Failed to submit Section B');
+      toast.error(err.response?.data?.message || 'Failed to submit Section B');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleBack = () => {
-    if (onBack) onBack();
-  };
-
   // Render fallback UI if years failed to load
-  if (years.length === 0) {
+  if (!years.length) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-teal-50 to-cyan-50 py-12 px-4">
-        <div className="max-w-7xl mx-auto text-center">
-          <h1 className="text-3xl font-bold text-gray-900 mb-4">Section B</h1>
-          {error && <div className="bg-red-100 text-red-700 p-4 rounded mb-4">{error}</div>}
-          {loading ? (
-            <div className="flex items-center justify-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600"></div>
-              <span className="ml-3 text-gray-700 font-medium">Loading years...</span>
-            </div>
-          ) : (
-            <div>
-              <p className="text-gray-700 mb-4">Unable to load year configuration. Please try again or contact support.</p>
-              <button
-                onClick={() => fetchYearConfig()}
-                className="bg-teal-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-teal-700"
-              >
-                Retry
-              </button>
-            </div>
-          )}
-        </div>
+      <div className="fixed inset-0 flex items-center justify-center pb-40">
+        <Loader2 className="w-12 h-12 animate-spin text-teal-500" />
+        <ToastContainer />
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-teal-50 to-cyan-50 py-12 px-4">
+      <ToastContainer
+        position="top-right"
+        autoClose={5000}
+        hideProgressBar={false}
+        newestOnTop
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        theme="colored"
+      />
       <div className="max-w-7xl mx-auto">
         <div className="text-center mb-12">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-teal-600 to-teal-700 rounded-full mb-6 shadow-lg">
@@ -370,17 +368,8 @@ const SectionB = ({ onNext, onBack }) => {
           </p>
         </div>
 
-        {error && <div className="bg-red-100 text-red-700 p-4 rounded mb-4">{error}</div>}
-        {success && <div className="bg-green-100 text-green-700 p-4 rounded mb-4">{success}</div>}
-
-        {loading && (
-          <div className="flex items-center justify-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600"></div>
-            <span className="ml-3 text-gray-700 font-medium">Loading...</span>
-          </div>
-        )}
-
-        <div className="space-y-8">
+        <form onSubmit={handleSubmit} className="space-y-8">
+          {/* Gender Information */}
           <div className="bg-white rounded-2xl shadow-xl border border-teal-100 overflow-hidden">
             <div className="bg-gradient-to-r from-teal-600 to-teal-700 px-8 py-6">
               <h2 className="text-2xl font-bold text-white mb-2">Gender Information</h2>
@@ -407,9 +396,11 @@ const SectionB = ({ onNext, onBack }) => {
                               type="number"
                               min="0"
                               value={genderData[gender][year] || ''}
+                              required
                               onChange={(e) => handleGenderChange(gender, year, e.target.value)}
                               placeholder="Enter count"
                               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500"
+                              disabled={loading}
                             />
                           </td>
                         ))}
@@ -434,6 +425,7 @@ const SectionB = ({ onNext, onBack }) => {
             </div>
           </div>
 
+          {/* Diversity Information */}
           <div className="bg-white rounded-2xl shadow-xl border border-teal-100 overflow-hidden">
             <div className="bg-gradient-to-r from-teal-600 to-teal-700 px-8 py-6">
               <h2 className="text-2xl font-bold text-white mb-2">Diversity Information</h2>
@@ -465,9 +457,11 @@ const SectionB = ({ onNext, onBack }) => {
                               type="number"
                               min="0"
                               value={diversityData[category][year] || ''}
+                              required
                               onChange={(e) => handleDiversityChange(category, year, e.target.value)}
                               placeholder="Enter count"
                               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500"
+                              disabled={loading}
                             />
                           </td>
                         ))}
@@ -492,10 +486,11 @@ const SectionB = ({ onNext, onBack }) => {
             </div>
           </div>
 
+          {/* Exam Scores */}
           <div className="bg-white rounded-2xl shadow-xl border border-teal-100 overflow-hidden">
             <div className="bg-gradient-to-r from-teal-600 to-teal-700 px-8 py-6">
               <h2 className="text-2xl font-bold text-white mb-2">Exam Scores</h2>
-              <p className="text-teal-100">Provide exam scores for admitted students.</p>
+              <p className="text-teal-100">Provide exam scores for admitted students (JEE, State Entrance, Counselling rank, etc.)</p>
             </div>
             <div className="p-8">
               <div className="overflow-x-auto">
@@ -515,18 +510,22 @@ const SectionB = ({ onNext, onBack }) => {
                           <input
                             type="text"
                             value={row.department}
+                            required
                             onChange={(e) => handleExamChange(row.id, 'department', e.target.value)}
                             placeholder="Enter department"
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500"
+                            disabled={loading}
                           />
                         </td>
                         <td className="py-4 px-6">
                           <input
                             type="text"
                             value={row.examName}
+                            required
                             onChange={(e) => handleExamChange(row.id, 'examName', e.target.value)}
                             placeholder="Enter exam name"
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500"
+                            disabled={loading}
                           />
                         </td>
                         <td className="py-4 px-6">
@@ -534,9 +533,11 @@ const SectionB = ({ onNext, onBack }) => {
                             type="number"
                             min="0"
                             value={row.highestRank}
+                            required
                             onChange={(e) => handleExamChange(row.id, 'highestRank', e.target.value)}
                             placeholder="Enter rank"
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500"
+                            disabled={loading}
                           />
                         </td>
                         <td className="py-4 px-6">
@@ -544,26 +545,42 @@ const SectionB = ({ onNext, onBack }) => {
                             type="number"
                             min="0"
                             value={row.lowestRank}
+                            required
                             onChange={(e) => handleExamChange(row.id, 'lowestRank', e.target.value)}
                             placeholder="Enter rank"
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500"
+                            disabled={loading}
                           />
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
-                <button
-                  type="button"
-                  onClick={addExamRow}
-                  className="mt-4 bg-teal-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-teal-700"
-                >
-                  Add Exam Row
-                </button>
+                <div className="mt-4 flex justify-center space-x-4">
+                  <button
+                    type="button"
+                    onClick={addExamRow}
+                    className="text-teal-600 hover:text-teal-700 font-medium transition-colors"
+                    disabled={loading}
+                  >
+                    + Add more rows
+                  </button>
+                  {examRows.length > 2 && (
+                    <button
+                      type="button"
+                      onClick={removeExamRow}
+                      className="text-red-600 hover:text-red-700 font-medium transition-colors"
+                      disabled={loading}
+                    >
+                      - Remove last row
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           </div>
 
+          {/* Financial Details */}
           <div className="bg-white rounded-2xl shadow-xl border border-teal-100 overflow-hidden">
             <div className="bg-gradient-to-r from-teal-600 to-teal-700 px-8 py-6">
               <h2 className="text-2xl font-bold text-white mb-2">Financial Details for Last Academic Year</h2>
@@ -579,9 +596,11 @@ const SectionB = ({ onNext, onBack }) => {
                     type="number"
                     min="0"
                     value={financeData.avgTuitionFees}
+                    required
                     onChange={(e) => handleFinanceChange('avgTuitionFees', e.target.value)}
                     placeholder="Enter amount in ₹"
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500"
+                    disabled={loading}
                   />
                 </div>
                 <div>
@@ -592,9 +611,11 @@ const SectionB = ({ onNext, onBack }) => {
                     type="number"
                     min="0"
                     value={financeData.otherFees}
+                    required
                     onChange={(e) => handleFinanceChange('otherFees', e.target.value)}
                     placeholder="Enter amount in ₹"
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500"
+                    disabled={loading}
                   />
                 </div>
               </div>
@@ -607,9 +628,11 @@ const SectionB = ({ onNext, onBack }) => {
                     type="number"
                     min="0"
                     value={financeData.hostelFees}
+                    required
                     onChange={(e) => handleFinanceChange('hostelFees', e.target.value)}
                     placeholder="Enter amount in ₹"
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500"
+                    disabled={loading}
                   />
                 </div>
                 <div>
@@ -620,9 +643,11 @@ const SectionB = ({ onNext, onBack }) => {
                     type="number"
                     min="0"
                     value={financeData.totalExpensesSalary}
+                    required
                     onChange={(e) => handleFinanceChange('totalExpensesSalary', e.target.value)}
                     placeholder="Enter amount in ₹"
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500"
+                    disabled={loading}
                   />
                 </div>
               </div>
@@ -635,9 +660,11 @@ const SectionB = ({ onNext, onBack }) => {
                     type="number"
                     min="0"
                     value={financeData.totalExpensesLabs}
+                    required
                     onChange={(e) => handleFinanceChange('totalExpensesLabs', e.target.value)}
                     placeholder="Enter amount in ₹"
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500"
+                    disabled={loading}
                   />
                 </div>
                 <div>
@@ -648,34 +675,40 @@ const SectionB = ({ onNext, onBack }) => {
                     type="number"
                     min="0"
                     value={financeData.perStudentExpenditure}
+                    required
                     onChange={(e) => handleFinanceChange('perStudentExpenditure', e.target.value)}
                     placeholder="Enter amount in ₹"
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500"
+                    disabled={loading}
                   />
                 </div>
               </div>
             </div>
           </div>
 
+          {/* Section B Drive Link */}
           <div className="bg-white rounded-2xl shadow-xl border border-teal-100 p-8">
             <label className="block text-sm font-semibold text-gray-900 mb-2">
               Section B Drive Link (for verification)
             </label>
             <input
-              type="text"
+              type="url"
               value={sectionBDriveLink}
+              required
               onChange={(e) => setSectionBDriveLink(e.target.value)}
               placeholder="Enter Google Drive link"
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500"
+              disabled={loading}
             />
           </div>
 
+          {/* Navigation */}
           <div className="flex justify-between items-center pt-8">
             {onBack && (
               <button
                 type="button"
-                className="flex items-center bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-3 px-6 rounded-lg transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2"
-                onClick={handleBack}
+                onClick={onBack}
+                className="inline-flex items-center px-6 py-3 bg-gray-600 text-white font-semibold rounded-lg hover:bg-gray-700 transition-colors duration-200"
               >
                 <ChevronLeft className="w-5 h-5 mr-2" />
                 Back to Section A
@@ -683,10 +716,9 @@ const SectionB = ({ onNext, onBack }) => {
             )}
             <div className="flex space-x-4 ml-auto">
               <button
-                type="button"
-                className="flex items-center bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-700 hover:to-teal-800 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-200 transform hover:scale-105 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                type="submit"
                 disabled={loading}
-                onClick={handleSubmitAndContinue}
+                className="flex items-center bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-700 hover:to-teal-800 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-200 transform hover:scale-105 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
               >
                 {loading ? (
                   <div className="flex items-center">
@@ -702,15 +734,15 @@ const SectionB = ({ onNext, onBack }) => {
               </button>
             </div>
           </div>
+        </form>
 
-          <div className="text-center mt-12 pt-8 border-t border-teal-200">
-            <p className="text-gray-600">
-              Need help? Contact our support team at{' '}
-              <a href="mailto:founderqae@gmail.com" className="text-teal-600 hover:text-teal-700 font-medium">
-                founderqae@gmail.com
-              </a>
-            </p>
-          </div>
+        <div className="text-center mt-12 pt-8 border-t border-teal-200">
+          <p className="text-gray-600">
+            Need help? Contact our support team at{' '}
+            <a href="mailto:founderqae@gmail.com" className="text-teal-600 hover:text-teal-700 font-medium">
+              founderqae@gmail.com
+            </a>
+          </p>
         </div>
       </div>
     </div>

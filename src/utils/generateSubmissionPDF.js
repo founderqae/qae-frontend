@@ -32,7 +32,7 @@ export const generateSubmissionPDF = (submissionData) => {
   pdf.text(submissionData.collegeName, margin, 20);
   pdf.setFontSize(10);
   pdf.setFont('helvetica', 'normal');
-  pdf.text(`Submission ID: ${submissionData.id} | Submitted: ${submissionData.submittedAt}`, margin, 30);
+  pdf.text(`Submission ID: ${submissionData.id} | Submitted: ${submissionData.submittedAt} | Status: ${submissionData.status || 'N/A'}`, margin, 30);
 
   yPosition = 50;
   pdf.setTextColor(0, 0, 0);
@@ -66,7 +66,7 @@ export const generateSubmissionPDF = (submissionData) => {
     yPosition += Math.max(6, lines.length * 5);
   };
 
-  // Table Helper using autoTable function directly
+  // Table Helper using autoTable
   const addTable = (headers, data, title = '') => {
     checkPageBreak(20);
     if (title) {
@@ -121,28 +121,29 @@ export const generateSubmissionPDF = (submissionData) => {
 
   // SECTION A: General Information
   addSectionHeader('Section A: General Information and Institute Details');
-  addDataRow('Institution Name', submissionData.sectionA.institutionName);
+  addDataRow('Institution Name', submissionData.sectionA.name);
   addDataRow('Year of Establishment', submissionData.sectionA.yearEstablished);
   addDataRow('Address', submissionData.sectionA.address);
-  addDataRow('Pincode', submissionData.sectionA.pincode);
+  addDataRow('Pincode', submissionData.sectionA.pinCode);
   addDataRow('State', submissionData.sectionA.state);
   addDataRow('Website', submissionData.sectionA.website);
   addDataRow('Head of Institution', submissionData.sectionA.headName);
-  addDataRow('Institute Type', submissionData.sectionA.instituteType);
-  addDataRow('Institute Category', submissionData.sectionA.instituteCategory);
+  addDataRow('Institute Type', submissionData.sectionA.ownership);
+  addDataRow('Institute Category', submissionData.sectionA.category);
   addDataRow('Affiliated University', submissionData.sectionA.affiliatedUniversity);
-  addDataRow('AICTE Approval', `${submissionData.sectionA.aicteApprovalNo} | Dated: ${submissionData.sectionA.aicteDate}`);
-  addDataRow('NBA Accreditation', `${submissionData.sectionA.nbaAccredited} | Valid till: ${submissionData.sectionA.nbaValidityDate}`);
-  addDataRow('NAAC Accreditation', `Score: ${submissionData.sectionA.naacScore} | Valid till: ${submissionData.sectionA.naacValidityDate}`);
-  addDataRow('Other Accreditation', submissionData.sectionA.otherAccreditation);
+  addDataRow('AICTE Approval', `${submissionData.sectionA.aicteApproval}`);
+  addDataRow('NBA Accreditation', submissionData.sectionA.nbaAccredited);
+  addDataRow('NAAC Accreditation', `Score: ${submissionData.sectionA.naacScore} | Valid till: ${submissionData.sectionA.naacValidity}`);
+  addDataRow('Other Accreditation', submissionData.sectionA.otherAccreditations);
   addDataRow('Applicant Name', submissionData.sectionA.applicantName);
   addDataRow('Applicant Designation', submissionData.sectionA.applicantDesignation);
   addDataRow('Contact Number', submissionData.sectionA.applicantContact);
   addDataRow('Email', submissionData.sectionA.applicantEmail);
+  addDataRow('Field', submissionData.sectionA.field);
 
   // SECTION B: Gender Information, Diversity and Finance
-  checkPageBreak(30);
   addSectionHeader('Section B: Gender Information, Diversity and Finance');
+  addDataRow('Section B Drive Link', submissionData.sectionB.sectionBDriveLink);
   
   const genderData = submissionData.sectionB.genderInfo.map(row => [
     row.gender,
@@ -166,70 +167,100 @@ export const generateSubmissionPDF = (submissionData) => {
   pdf.setFont('helvetica', 'bold');
   pdf.text('Financial Details (Last Academic Year)', margin, yPosition);
   yPosition += 7;
-  addDataRow('Average Tuition Fees (per year)', `₹ ${Number(submissionData.sectionB.avgTuitionFees || 0).toLocaleString('en-IN')}`);
-  addDataRow('Other Fees (per year)', `₹ ${Number(submissionData.sectionB.otherFees || 0).toLocaleString('en-IN')}`);
-  addDataRow('Hostel Fees (per year)', `₹ ${Number(submissionData.sectionB.hostelFees || 0).toLocaleString('en-IN')}`);
-  addDataRow('Total Teaching Staff Expenses', `₹ ${Number(submissionData.sectionB.teachingSalaryExpense || 0).toLocaleString('en-IN')}`);
-  addDataRow('Total Lab Expenses', `₹ ${Number(submissionData.sectionB.labExpenses || 0).toLocaleString('en-IN')}`);
-  addDataRow('Per Student Expenditure', `₹ ${Number(submissionData.sectionB.perStudentExpenditure || 0).toLocaleString('en-IN')}`);
+  addDataRow('Average Tuition Fees (per year)', `₹${Number(submissionData.sectionB.avgTuitionFees || 0).toLocaleString('en-IN')}`);
+  addDataRow('Other Fees (per year)', `₹${Number(submissionData.sectionB.otherFees || 0).toLocaleString('en-IN')}`);
+  addDataRow('Hostel Fees (per year)', `₹${Number(submissionData.sectionB.hostelFees || 0).toLocaleString('en-IN')}`);
+  addDataRow('Total Teaching Staff Expenses', `₹${Number(submissionData.sectionB.teachingSalaryExpense || 0).toLocaleString('en-IN')}`);
+  addDataRow('Total Lab Expenses', `₹${Number(submissionData.sectionB.labExpenses || 0).toLocaleString('en-IN')}`);
+  addDataRow('Per Student Expenditure', `₹${Number(submissionData.sectionB.perStudentExpenditure || 0).toLocaleString('en-IN')}`);
 
   // SECTION C: Academics
-  checkPageBreak(30);
   addSectionHeader('Section C: Academics');
+  addDataRow('Section C Drive Link', submissionData.sectionC.sectionCDriveLink);
 
   // Specialization Details
   const specializationData = submissionData.sectionC.specialization.map(row => [
+    row.slNo,
     row.department,
-    ...years.sectionC.flatMap(y => [row[y]?.intake || '', row[y]?.filled || '', row[y]?.percentage ? row[y].percentage.toFixed(2) : ''])
+    ...years.sectionC.flatMap(y => [
+      row[y]?.intake || '',
+      row[y]?.filled || '',
+      row[y]?.percentage ? row[y].percentage.toFixed(2) : ''
+    ])
   ]);
   addTable(
-    ['Department', ...years.sectionC.flatMap(y => [`${y} Intake`, `${y} Filled`, `${y} %`])],
+    ['Sl.No', 'Department', ...years.sectionC.flatMap(y => [`${y} Intake`, `${y} Filled`, `${y} %`])],
     specializationData,
     'Specialization Details - Student Admission'
   );
 
   // Faculty Details
   const facultyData = submissionData.sectionC.facultyDetails.map(row => [
-    row.department, row.intake,
+    row.slNo,
+    row.department,
+    row.intake,
     ...years.sectionC.flatMap(y => [row[y]?.prof || '', row[y]?.asp || '', row[y]?.ap || ''])
   ]);
   addTable(
-    ['Department', 'Intake', ...years.sectionC.flatMap(y => [`${y} Prof`, `${y} ASP`, `${y} AP`])],
+    ['Sl.No', 'Department', 'Intake', ...years.sectionC.flatMap(y => [`${y} Prof`, `${y} ASP`, `${y} AP`])],
     facultyData,
     'Faculty Details'
   );
 
   // PhD Holders
   const phdData = submissionData.sectionC.phdHolders.map(row => [
-    row.year, row.totalFaculty, row.phdHolders, row.percentage ? row.percentage.toFixed(2) : ''
+    row.year,
+    row.totalFaculty,
+    row.phdHolders,
+    row.percentage ? row.percentage.toFixed(2) : ''
   ]);
   addTable(['Year', 'Total Faculty', 'PhD Holders', 'Percentage'], phdData, 'PhD Holders (Permanent Faculty)');
 
+  // Faculty Information
+  checkPageBreak(20);
+  pdf.setFontSize(10);
+  pdf.setFont('helvetica', 'bold');
+  pdf.text('Faculty Information', margin, yPosition);
+  yPosition += 7;
+  addDataRow('Average Teaching Experience', submissionData.sectionC.avgTeachingExperience);
+  addDataRow('Credits Earned by Students', submissionData.sectionC.creditsEarned);
+  addDataRow('Contact Hours', submissionData.sectionC.contactHours);
+  addDataRow('Faculty Below Feedback Threshold', submissionData.sectionC.belowThresholdFaculty);
+
   // Placement, Higher Education, and Entrepreneurship
   const placementData = submissionData.sectionC.placementData.map(row => [
+    row.slNo,
     row.department,
-    ...years.sectionC.flatMap(y => [row[y]?.a || '', row[y]?.b || '', row[y]?.c || ''])
+    ...years.sectionC.flatMap(y => [
+      row[y]?.a || '',
+      row[y]?.b || '',
+      row[y]?.c || '',
+      (Number(row[y]?.a || 0) + Number(row[y]?.b || 0) + Number(row[y]?.c || 0)).toString()
+    ])
   ]);
   addTable(
-    ['Department', ...years.sectionC.flatMap(y => [`${y} A`, `${y} B`, `${y} C`])],
+    ['Sl.No', 'Department', ...years.sectionC.flatMap(y => [`${y} A`, `${y} B`, `${y} C`, `${y} Total`])],
     placementData,
-    'Placement, Higher Education, and Entrepreneurship'
+    'Placement (A), Higher Education (B), and Entrepreneurship (C)'
   );
 
   // Placement Summary
   const placementSummaryData = submissionData.sectionC.placementSummary.map(row => [
+    row.slNo,
     row.department,
-    ...years.sectionC.flatMap(y => [row[y]?.n || '', row[y]?.x || '', row[y]?.n > 0 ? ((row[y]?.x / row[y]?.n) * 100).toFixed(2) : ''])
+    ...years.sectionC.flatMap(y => [row[y]?.n || '', row[y]?.x || '', row[y]?.percentage || ''])
   ]);
   addTable(
-    ['Department', ...years.sectionC.flatMap(y => [`${y} N`, `${y} X`, `${y} %`])],
+    ['Sl.No', 'Department', ...years.sectionC.flatMap(y => [`${y} N`, `${y} X`, `${y} %`])],
     placementSummaryData,
     'Placement Summary'
   );
 
   // Student Contact Details
   const studentContactData = submissionData.sectionC.studentContactDetails.map(row => [
-    row.slNo, row.nameAndDepartment, row.email
+    row.slNo,
+    row.nameAndDepartment,
+    row.email
   ]);
   addTable(['Sl.No', 'Name and Department', 'E-Mail Id'], studentContactData, 'Student Contact Details (Last Passed Out Batch)');
 
@@ -249,10 +280,14 @@ export const generateSubmissionPDF = (submissionData) => {
 
   // Other Academic Details
   checkPageBreak(20);
+  pdf.setFontSize(10);
+  pdf.setFont('helvetica', 'bold');
+  pdf.text('Other Academic Details', margin, yPosition);
+  yPosition += 7;
   addDataRow('NEP 2020 Implementation', submissionData.sectionC.nepImplementation);
   addDataRow('Multiple Entry & Exit Scheme', submissionData.sectionC.multipleEntryExit);
   addDataRow('Inter College Competitions', submissionData.sectionC.interCollegeCompetitions);
-  addDataRow('Intra College Competitions', submissionData.sectionC.intraCollegeCompetitions);
+  addDataRow('Intra College Compet’isitions', submissionData.sectionC.intraCollegeCompetitions);
   addDataRow('Clubs and Societies', submissionData.sectionC.clubsSocieties);
   addDataRow('Mentor-Mentee Ratio', submissionData.sectionC.mentorMenteeRatio);
   addDataRow('Student Counsellor Available', submissionData.sectionC.studentCounsellor);
@@ -263,7 +298,11 @@ export const generateSubmissionPDF = (submissionData) => {
   addDataRow('MoUs with Foreign Universities', submissionData.sectionC.hasForeignMoUs ? 'Yes' : 'No');
   if (submissionData.sectionC.hasForeignMoUs && submissionData.sectionC.foreignMoUs?.length > 0) {
     const foreignMouData = submissionData.sectionC.foreignMoUs.map(row => [
-      row.slNo, row.university, row.country, row.validUpto, row.link
+      row.slNo,
+      row.university,
+      row.country,
+      row.validUpto,
+      row.link
     ]);
     addTable(['Sl.No', 'University', 'Country', 'Valid Upto', 'Link'], foreignMouData, 'MoUs with Foreign Universities');
   }
@@ -271,12 +310,20 @@ export const generateSubmissionPDF = (submissionData) => {
   // Foreign Language Training
   checkPageBreak(20);
   addDataRow('Foreign Language Training', submissionData.sectionC.foreignLanguageTraining);
-  addDataRow('Certificate Details', `<a href="${submissionData.sectionC.foreignLanguageCertLink}">View Certification Details</a>`);
+  if (submissionData.sectionC.foreignLanguageTraining === 'Yes') {
+    addDataRow('Certificate Details', submissionData.sectionC.foreignLanguageCertLink);
+  }
 
   // SECTION D: Infrastructure
-  checkPageBreak(30);
   addSectionHeader('Section D: Infrastructure');
+  addDataRow('Section D Drive Link', submissionData.sectionD.sectionDDriveLink);
 
+  // Campus Infrastructure
+  checkPageBreak(20);
+  pdf.setFontSize(10);
+  pdf.setFont('helvetica', 'bold');
+  pdf.text('Campus Infrastructure', margin, yPosition);
+  yPosition += 7;
   addDataRow('Campus Area (sq.ft)', submissionData.sectionD.campusArea);
   addDataRow('Total Built-up Area (sq.ft)', submissionData.sectionD.builtUpArea);
   addDataRow('Number of Classrooms', submissionData.sectionD.classrooms);
@@ -285,14 +332,37 @@ export const generateSubmissionPDF = (submissionData) => {
   addDataRow('Conference/Discussion Halls', submissionData.sectionD.conferenceHalls);
   addDataRow('Auditoriums', submissionData.sectionD.auditoriums);
   addDataRow('Student Computer Ratio', submissionData.sectionD.studentComputerRatio);
-  addDataRow('STP Plant', `${submissionData.sectionD.stpPlant} | Output: ${submissionData.sectionD.stpOutcome}`);
+
+  // Facilities
+  checkPageBreak(20);
+  pdf.setFontSize(10);
+  pdf.setFont('helvetica', 'bold');
+  pdf.text('Facilities', margin, yPosition);
+  yPosition += 7;
+  addDataRow('STP Plant', submissionData.sectionD.stpPlant);
+  if (submissionData.sectionD.stpPlant === 'Yes') {
+    addDataRow('STP Output', submissionData.sectionD.stpOutcome);
+  }
   addDataRow('Waste Disposal MoU', submissionData.sectionD.wasteDisposalMoU);
   addDataRow('NSS Available', submissionData.sectionD.nss);
   addDataRow('NCC Available', submissionData.sectionD.ncc);
-  addDataRow('Cells/Committees Available', submissionData.sectionD.cellsCommittees?.length > 0 ? submissionData.sectionD.cellsCommittees.join(', ') : 'None');
+  addDataRow('Cells/Committees Available', submissionData.sectionD.cellsCommittees);
   addDataRow('ATM on Campus', submissionData.sectionD.atm);
   addDataRow('Wi-Fi Connectivity', submissionData.sectionD.wifi);
-  addDataRow('IQAC Established', `${submissionData.sectionD.iqac} | Date: ${submissionData.sectionD.iqacEstablished}`);
+  if (submissionData.sectionD.wifi === 'Yes') {
+    addDataRow('Wi-Fi Details', submissionData.sectionD.wifiDetails);
+  }
+  addDataRow('IQAC Established', submissionData.sectionD.iqac);
+  if (submissionData.sectionD.iqac === 'Yes') {
+    addDataRow('IQAC Establishment Date', submissionData.sectionD.iqacEstablished);
+  }
+
+  // Library Resources
+  checkPageBreak(20);
+  pdf.setFontSize(10);
+  pdf.setFont('helvetica', 'bold');
+  pdf.text('Library Resources', margin, yPosition);
+  yPosition += 7;
   addDataRow('Central Library Area (sq.ft)', submissionData.sectionD.centralLibrary);
   addDataRow('Total Book Volumes', submissionData.sectionD.booksVolumes);
   addDataRow('Books Added (Last 3 Years)', submissionData.sectionD.booksAddedLastThreeYears);
@@ -303,55 +373,99 @@ export const generateSubmissionPDF = (submissionData) => {
   addDataRow('Digital Library', submissionData.sectionD.digitalLibrary);
 
   // Department Libraries
-  if (submissionData.sectionD.departmentLibrary?.length > 0) {
+  checkPageBreak(20);
+  addDataRow('Department Libraries Available', submissionData.sectionD.hasDeptLibrary);
+  if (submissionData.sectionD.hasDeptLibrary === 'Yes' && submissionData.sectionD.departmentLibrary?.length > 0) {
     const departmentLibraryData = submissionData.sectionD.departmentLibrary.map(row => [
-      row.department, row.volumes
+      row.department,
+      row.volumes
     ]);
     addTable(['Department', 'Volumes'], departmentLibraryData, 'Department Libraries');
-  } else {
-    addDataRow('Department Libraries Available', 'No');
   }
 
   // Hostel Details
-  if (submissionData.sectionD.hostelDetails?.length > 0) {
+  checkPageBreak(20);
+  addDataRow('Hostel Available', submissionData.sectionD.hasHostel);
+  if (submissionData.sectionD.hasHostel === 'Yes' && submissionData.sectionD.hostelDetails?.length > 0) {
     const hostelData = submissionData.sectionD.hostelDetails.map(row => [
-      row.type, row.rooms, row.capacity, row.occupied
+      row.type,
+      row.rooms,
+      row.capacity,
+      row.occupied
     ]);
     addTable(['Type', 'Rooms', 'Capacity', 'Occupied'], hostelData, 'Hostel Details');
-  } else {
-    addDataRow('Hostel Available', 'No');
   }
 
-  addDataRow('Total Quarters', submissionData.sectionD.facultyQuarters.quarters);
-  addDataRow('Occupied Quarters', submissionData.sectionD.facultyQuarters.occupied);
-  addDataRow('Guest Rooms', submissionData.sectionD.guestRooms);
-  addDataRow('Boys Common Rooms', submissionData.sectionD.boysCommonRooms);
-  addDataRow('Girls Common Rooms', submissionData.sectionD.girlsCommonRooms);
+  // Faculty Quarters
+  checkPageBreak(20);
+  addDataRow('Faculty Quarters Available', submissionData.sectionD.hasFacultyQuarters);
+  if (submissionData.sectionD.hasFacultyQuarters === 'Yes') {
+    addDataRow('Total Quarters', submissionData.sectionD.facultyQuarters.quarters);
+    addDataRow('Occupied Quarters', submissionData.sectionD.facultyQuarters.occupied);
+  }
+
+  // Common Facilities
+  checkPageBreak(20);
+  pdf.setFontSize(10);
+  pdf.setFont('helvetica', 'bold');
+  pdf.text('Common Facilities', margin, yPosition);
+  yPosition += 7;
+  addDataRow('Guest Rooms', submissionData.sectionD.guestRooms.guestRooms);
+  addDataRow('Boys Common Rooms', submissionData.sectionD.guestRooms.commonBoys);
+  addDataRow('Girls Common Rooms', submissionData.sectionD.guestRooms.commonGirls);
+
+  // Medical Facilities
+  checkPageBreak(20);
+  pdf.setFontSize(10);
+  pdf.setFont('helvetica', 'bold');
+  pdf.text('Medical Facilities', margin, yPosition);
+  yPosition += 7;
   addDataRow('Registered Medical Practitioner', submissionData.sectionD.medicalFacilities.registeredPractitioner);
   addDataRow('Nursing Assistant', submissionData.sectionD.medicalFacilities.nursingAssistant);
   addDataRow('Emergency Medicines', submissionData.sectionD.medicalFacilities.emergencyMedicines);
+
+  // Sustainability Initiatives
+  checkPageBreak(20);
+  pdf.setFontSize(10);
+  pdf.setFont('helvetica', 'bold');
+  pdf.text('Sustainability Initiatives', margin, yPosition);
+  yPosition += 7;
   addDataRow('Solar Power Initiatives', submissionData.sectionD.solarPower);
+  if (submissionData.sectionD.solarPower === 'Yes') {
+    addDataRow('Solar Details', submissionData.sectionD.solarDetails);
+  }
   addDataRow('Sustainable Development', submissionData.sectionD.sustainableDevelopment);
+  if (submissionData.sectionD.sustainableDevelopment === 'Yes') {
+    addDataRow('Sustainability Details', submissionData.sectionD.sustainabilityDetails);
+  }
 
   // Sports Facilities
-  if (submissionData.sectionD.sportsFacilities?.length > 0) {
+  checkPageBreak(20);
+  addDataRow('Sports Facilities Available', submissionData.sectionD.hasSportsFacilities);
+  if (submissionData.sectionD.hasSportsFacilities === 'Yes' && submissionData.sectionD.sportsFacilities?.length > 0) {
     const sportsData = submissionData.sectionD.sportsFacilities.map(row => [
-      row.facility, row.area
+      row.particular,
+      row.area
     ]);
     addTable(['Facility', 'Area'], sportsData, 'Sports Facilities');
-  } else {
-    addDataRow('Sports Facilities Available', 'No');
   }
 
   // SECTION E: Research
-  checkPageBreak(30);
   addSectionHeader('Section E: Research');
+  addDataRow('Section E Drive Link', submissionData.sectionE.sectionEDriveLink);
 
   const journalData = submissionData.sectionE.journalPublications.map(row => [
     row.type,
     ...years.sectionE.map(y => row[y] || '')
   ]);
   addTable(['Publication Type', ...years.sectionE], journalData, 'Journal Publications');
+
+  const conferenceData = submissionData.sectionE.conferencePublications.map(row => [
+    row.id,
+    row.particular,
+    ...years.sectionE.map(y => row[y] || '')
+  ]);
+  addTable(['Sl.No', 'Particular', ...years.sectionE], conferenceData, 'Conference/Book Chapters Publications');
 
   const patentData = submissionData.sectionE.patents.map(row => [
     row.particular,
@@ -363,12 +477,12 @@ export const generateSubmissionPDF = (submissionData) => {
     ...submissionData.sectionE.researchProjects.map(row => [
       row.id,
       row.particular,
-      ...years.sectionE.map(y => `₹ ${Number(row[y] || 0).toLocaleString('en-IN')}`)
+      ...years.sectionE.map(y => `₹${Number(row[y] || 0).toLocaleString('en-IN')}`)
     ]),
     [
       'Total',
       '',
-      ...years.sectionE.map(y => `₹ ${submissionData.sectionE.researchProjects.reduce((sum, row) => sum + Number(row[y] || 0), 0).toLocaleString('en-IN')}`)
+      ...years.sectionE.map(y => `₹${submissionData.sectionE.researchProjects.reduce((sum, row) => sum + Number(row[y] || 0), 0).toLocaleString('en-IN')}`)
     ]
   ];
   addTable(['Sl.No', 'Particular', ...years.sectionE.map(y => `${y} (₹)`)], researchProjectData, 'Research Projects (Government)');
@@ -377,12 +491,12 @@ export const generateSubmissionPDF = (submissionData) => {
     ...submissionData.sectionE.researchGrants.map(row => [
       row.id,
       row.particular,
-      ...years.sectionE.map(y => `₹ ${Number(row[y] || 0).toLocaleString('en-IN')}`)
+      ...years.sectionE.map(y => `₹${Number(row[y] || 0).toLocaleString('en-IN')}`)
     ]),
     [
       'Total',
       '',
-      ...years.sectionE.map(y => `₹ ${submissionData.sectionE.researchGrants.reduce((sum, row) => sum + Number(row[y] || 0), 0).toLocaleString('en-IN')}`)
+      ...years.sectionE.map(y => `₹${submissionData.sectionE.researchGrants.reduce((sum, row) => sum + Number(row[y] || 0), 0).toLocaleString('en-IN')}`)
     ]
   ];
   addTable(['Sl.No', 'Particular', ...years.sectionE.map(y => `${y} (₹)`)], researchGrantsData, 'Research Grants (Government)');
@@ -391,12 +505,12 @@ export const generateSubmissionPDF = (submissionData) => {
     ...submissionData.sectionE.consultancyWorks.map(row => [
       row.id,
       row.particular,
-      ...years.sectionE.map(y => `₹ ${Number(row[y] || 0).toLocaleString('en-IN')}`)
+      ...years.sectionE.map(y => `₹${Number(row[y] || 0).toLocaleString('en-IN')}`)
     ]),
     [
       'Total',
       '',
-      ...years.sectionE.map(y => `₹ ${submissionData.sectionE.consultancyWorks.reduce((sum, row) => sum + Number(row[y] || 0), 0).toLocaleString('en-IN')}`)
+      ...years.sectionE.map(y => `₹${submissionData.sectionE.consultancyWorks.reduce((sum, row) => sum + Number(row[y] || 0), 0).toLocaleString('en-IN')}`)
     ]
   ];
   addTable(['Sl.No', 'Particular', ...years.sectionE.map(y => `${y} (₹)`)], consultancyWorksData, 'Consultancy Works');
@@ -405,13 +519,8 @@ export const generateSubmissionPDF = (submissionData) => {
     ...submissionData.sectionE.seedMoney.map(row => [
       row.id,
       row.particular,
-      ...years.sectionE.map(y => `₹ ${Number(row[y] || 0).toLocaleString('en-IN')}`)
-    ]),
-    [
-      'Total',
-      '',
-      ...years.sectionE.map(y => `₹ ${submissionData.sectionE.seedMoney.reduce((sum, row) => sum + Number(row[y] || 0), 0).toLocaleString('en-IN')}`)
-    ]
+      ...years.sectionE.map(y => `₹${Number(row[y] || 0).toLocaleString('en-IN')}`)
+    ])
   ];
   addTable(['Sl.No', 'Particular', ...years.sectionE.map(y => `${y} (₹)`)], seedMoneyData, 'Seed Money');
 

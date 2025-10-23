@@ -24,7 +24,7 @@ const NavBar = () => {
           return;
         }
 
-        const response = await axios.get('https://qae-server.vercel.app/api/institution/current-user', {
+        const response = await axios.get('https://qae-server.vercel.app/api/section-a/current-user', {
           headers: { Authorization: `Bearer ${token}` },
         });
 

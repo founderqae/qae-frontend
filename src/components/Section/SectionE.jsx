@@ -1,138 +1,146 @@
 import React, { useState, useEffect } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
-
+import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
+import { toast, ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 const SectionE = ({ formData = {}, setFormData, onNext, onBack }) => {
-  const [loading, setLoading] = useState(false);
+const [loading, setLoading] = useState(false);
   const [years, setYears] = useState([]);
   const [researchData, setResearchData] = useState(null);
   const [submissionId, setSubmissionId] = useState(null);
+  const [errors, setErrors] = useState({});
 
-  const token = localStorage.getItem('token'); // Assuming token is stored in localStorage
+  const token = localStorage.getItem('token');
+
+  // Initialize empty year object
+  const initYearObject = (yearsArr) => yearsArr.reduce((acc, y) => ({ ...acc, [y]: '' }), {});
+
+  // Initialize array section with min 2 rows (except seedMoney)
+  const initArraySection = (yearsArr, minRows = 2) =>
+    Array.from({ length: minRows }, (_, i) => ({
+      id: i + 1,
+      particular: '',
+      ...initYearObject(yearsArr),
+    }));
 
   useEffect(() => {
     const fetchData = async () => {
+      if (!token) {
+        toast.error("Authentication token missing. Please log in.");
+        return;
+      }
+
       try {
-        // Fetch year configuration
         const yearRes = await fetch('https://qae-server.vercel.app/api/config/year', {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+          headers: { Authorization: `Bearer ${token}` },
         });
-        if (!yearRes.ok) {
-          throw new Error('Failed to fetch year configuration');
-        }
+        if (!yearRes.ok) throw new Error('Failed to fetch year configuration');
         const yearData = await yearRes.json();
-        const fetchedYears = [yearData.p, yearData.pMinus1, yearData.pMinus2];
+        const fetchedYears = [yearData.p, yearData.pMinus1, yearData.pMinus2].filter(Boolean);
         setYears(fetchedYears);
 
-        // Initialize empty data structure
-        const emptyYears = fetchedYears.reduce((acc, y) => ({ ...acc, [y]: '' }), {});
+        const emptyYears = initYearObject(fetchedYears);
 
-        // Fetch Section E data
-        const sectionRes = await fetch('https://qae-server.vercel.app/api/submit/submissions/section-e', {
-          headers: {
-            Authorization: `Bearer ${token}`,
+        const defaultResearchData = {
+          journals: {
+            sci: { ...emptyYears },
+            scie: { ...emptyYears },
+            scopus: { ...emptyYears },
           },
-        });
-        let sectionData = null;
-        if (sectionRes.ok) {
-          sectionData = await sectionRes.json();
-          setSubmissionId(sectionData.submissionId);
-        }
-
-        // Map fetched data or use empty
-        const journals = {
-          sci: { ...emptyYears },
-          scie: { ...emptyYears },
-          scopus: { ...emptyYears },
-        };
-        const patents = {
-          published: { ...emptyYears },
-          granted: { ...emptyYears },
-          commercialized: { ...emptyYears },
-        };
-        const incubation = {
-          centers: { ...emptyYears },
+          conferences: [{ id: 1, particular: 'Scopus Indexed', ...emptyYears }],
+          patents: {
+            published: { ...emptyYears },
+            granted: { ...emptyYears },
+            commercialized: { ...emptyYears },
+          },
+          projects: initArraySection(fetchedYears),
+          grants: initArraySection(fetchedYears),
+          consultancy: initArraySection(fetchedYears),
+          seedMoney: [{ id: 1, particular: '', ...emptyYears }], // Only 1 row
+          incubation: { centers: { ...emptyYears } },
+          sectionEDriveLink: '',
         };
 
-        // Helper to get unique particulars and sum amounts per year
-        const getArrayData = (items) => {
-          const projectsMap = new Map();
-          items.forEach((item) => {
-            const key = item.particular;
-            if (!projectsMap.has(key)) {
-              projectsMap.set(key, fetchedYears.reduce((acc, y) => ({ ...acc, [y]: 0 }), {}));
-            }
-            const amounts = projectsMap.get(key);
-            amounts[item.year] += item.amount;
+        let existingData = null;
+        let existingSubmissionId = null;
+
+        try {
+          const sectionRes = await fetch('https://qae-server.vercel.app/api/submit/submissions/section-e', {
+            headers: { Authorization: `Bearer ${token}` },
           });
-          let arrayData = Array.from(projectsMap, ([particular, amounts], index) => ({
-            id: index + 1,
-            particular,
-            ...fetchedYears.reduce((acc, y) => ({ ...acc, [y]: amounts[y].toString() }), {}),
-          }));
-          if (arrayData.length === 0) {
-            arrayData = [
-              { id: 1, particular: '', ...emptyYears },
-              { id: 2, particular: '', ...emptyYears },
-            ];
+          if (sectionRes.ok) {
+            existingData = await sectionRes.json();
+            existingSubmissionId = existingData.submissionId;
           }
-          return arrayData;
-        };
-
-        let conferences = [
-          { id: 1, particular: 'Scopus Indexed', ...emptyYears },
-        ];
-        let projects = getArrayData(sectionData?.researchProjects || []);
-        let grants = getArrayData(sectionData?.researchGrants || []);
-        let consultancy = getArrayData(sectionData?.consultancies || []);
-        let seedMoney = getArrayData(sectionData?.seedMoneys || []);
-
-        if (sectionData) {
-          // Map journals
-          sectionData.journalPublications.forEach((jp) => {
-            journals.sci[jp.year] = jp.sci.toString();
-            journals.scie[jp.year] = jp.scieWos.toString();
-            journals.scopus[jp.year] = jp.scopus.toString();
-          });
-          // Map conferences (sum if multiple, but since no particular, use first row)
-          sectionData.conferenceBooks.forEach((cb) => {
-            conferences[0][cb.year] = (parseInt(conferences[0][cb.year] || 0) + cb.scopus).toString();
-          });
-          // Map patents
-          sectionData.patents.forEach((pt) => {
-            patents.published[pt.year] = pt.published.toString();
-            patents.granted[pt.year] = pt.granted.toString();
-            patents.commercialized[pt.year] = pt.commercialized.toString();
-          });
-          // Incubation
-          sectionData.incubationCentres.forEach((ic) => {
-            incubation.centers[ic.year] = ic.count.toString();
-          });
+        } catch (err) {
+          console.warn("No existing data found for Section E");
         }
 
-        setResearchData({
-          journals,
-          conferences,
-          patents,
-          projects,
-          grants,
-          consultancy,
-          seedMoney,
-          incubation,
-          sectionEDriveLink: sectionData?.sectionEDriveLink || '',
-        });
+        if (existingData) {
+          const populateArray = (items = []) => {
+            const map = new Map();
+            items.forEach(item => {
+              const key = item.particular || "Unknown";
+              if (!map.has(key)) map.set(key, { ...emptyYears });
+              map.get(key)[item.year] = item.amount.toString();
+            });
+            const result = Array.from(map, ([particular, amounts], idx) => ({
+              id: idx + 1,
+              particular,
+              ...Object.fromEntries(Object.entries(amounts).map(([y, v]) => [y, v.toString()])),
+            }));
+            return result.length > 0 ? result : initArraySection(fetchedYears);
+          };
+
+          existingData.journalPublications?.forEach(jp => {
+            defaultResearchData.journals.sci[jp.year] = jp.sci.toString();
+            defaultResearchData.journals.scie[jp.year] = jp.scieWos.toString();
+            defaultResearchData.journals.scopus[jp.year] = jp.scopus.toString();
+          });
+
+          existingData.conferenceBooks?.forEach(cb => {
+            const current = parseInt(defaultResearchData.conferences[0][cb.year] || 0);
+            defaultResearchData.conferences[0][cb.year] = (current + cb.scopus).toString();
+          });
+
+          existingData.patents?.forEach(pt => {
+            defaultResearchData.patents.published[pt.year] = pt.published.toString();
+            defaultResearchData.patents.granted[pt.year] = pt.granted.toString();
+            defaultResearchData.patents.commercialized[pt.year] = pt.commercialized.toString();
+          });
+
+          existingData.incubationCentres?.forEach(ic => {
+            defaultResearchData.incubation.centers[ic.year] = ic.count.toString();
+          });
+
+          defaultResearchData.projects = populateArray(existingData.researchProjects);
+          defaultResearchData.grants = populateArray(existingData.researchGrants);
+          defaultResearchData.consultancy = populateArray(existingData.consultancies);
+          defaultResearchData.seedMoney = populateArray(existingData.seedMoneys).slice(0, 1); // Force 1 row
+
+          defaultResearchData.sectionEDriveLink = existingData.sectionEDriveLink || '';
+        }
+
+        setResearchData(defaultResearchData);
+        setSubmissionId(existingSubmissionId);
       } catch (error) {
         console.error('Error fetching data:', error);
+        toast.error("Failed to load Section E data. Please try again.");
       }
     };
 
     fetchData();
-  }, []);
+  }, [token]);
 
-  // Handlers for input changes
+  // Sync to formData
+  useEffect(() => {
+    if (researchData && years.length > 0) {
+      setFormData(prev => ({ ...prev, research: researchData }));
+    }
+  }, [researchData, years, setFormData]);
+
+  // Handlers
   const handleInputChange = (section, field, year, value) => {
-    setResearchData((prev) => ({
+    setResearchData(prev => ({
       ...prev,
       [section]: {
         ...prev[section],
@@ -145,42 +153,41 @@ const SectionE = ({ formData = {}, setFormData, onNext, onBack }) => {
   };
 
   const handleArrayInputChange = (section, id, field, value) => {
-    setResearchData((prev) => ({
+    setResearchData(prev => ({
       ...prev,
-      [section]: prev[section].map((row) =>
+      [section]: prev[section].map(row =>
         row.id === id ? { ...row, [field]: value } : row
       ),
     }));
   };
 
-  // Add and remove rows for array-based sections
+  // Only allow add/remove for projects, grants, consultancy
   const addRow = (section) => {
-    const newId = Math.max(...researchData[section].map((row) => row.id), 0) + 1;
-    const emptyYears = years.reduce((acc, y) => ({ ...acc, [y]: '' }), {});
-    setResearchData((prev) => ({
+    if (section === 'seedMoney') return;
+    const newId = Math.max(...researchData[section].map(r => r.id), 0) + 1;
+    const emptyRow = { id: newId, particular: '', ...initYearObject(years) };
+    setResearchData(prev => ({
       ...prev,
-      [section]: [
-        ...prev[section],
-        { id: newId, particular: '', ...emptyYears },
-      ],
+      [section]: [...prev[section], emptyRow],
     }));
   };
 
   const removeRow = (section) => {
-    setResearchData((prev) => ({
+    if (section === 'seedMoney') return;
+    if (researchData[section].length <= 2) return;
+    setResearchData(prev => ({
       ...prev,
       [section]: prev[section].slice(0, -1),
     }));
   };
 
-  // Calculate patent percentage
+  // Calculations
   const calculatePatentPercentage = (year) => {
     const published = parseInt(researchData.patents.published[year]) || 0;
     const granted = parseInt(researchData.patents.granted[year]) || 0;
     return published > 0 ? ((granted / published) * 100).toFixed(1) : '0.0';
   };
 
-  // Calculate totals for array-based sections
   const calculateTotal = (section) => {
     return years.reduce((totals, year) => ({
       ...totals,
@@ -188,84 +195,93 @@ const SectionE = ({ formData = {}, setFormData, onNext, onBack }) => {
     }), {});
   };
 
-  // Calculate overall total for incubation centers
   const calculateIncubationTotal = () => {
     return years.reduce((sum, year) => sum + (parseInt(researchData.incubation.centers[year]) || 0), 0);
   };
 
-  // Sync with formData
-  useEffect(() => {
-    if (researchData) {
-      setFormData({
-        ...formData,
-        research: researchData,
-      });
+  // Validation
+  const validateForm = () => {
+    const newErrors = {};
+
+    if (!researchData.sectionEDriveLink.trim()) {
+      newErrors.driveLink = "Verification Drive Link is required.";
+    } else if (!/^https?:\/\/drive\.google\.com/.test(researchData.sectionEDriveLink)) {
+      newErrors.driveLink = "Please enter a valid Google Drive link.";
     }
-  }, [researchData, setFormData, formData]);
+
+    const hasJournal = years.some(year =>
+      parseInt(researchData.journals.sci[year]) > 0 ||
+      parseInt(researchData.journals.scie[year]) > 0 ||
+      parseInt(researchData.journals.scopus[year]) > 0
+    );
+    if (!hasJournal) {
+      newErrors.journals = "At least one journal publication count is required.";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!validateForm()) {
+      toast.error("Please fix the errors before submitting.");
+      return;
+    }
+
     setLoading(true);
     try {
       const payload = {
-        journalPublications: years.map((year) => ({
+        journalPublications: years.map(year => ({
           year,
           sci: parseInt(researchData.journals.sci[year]) || 0,
           scieWos: parseInt(researchData.journals.scie[year]) || 0,
           scopus: parseInt(researchData.journals.scopus[year]) || 0,
         })),
-        conferenceBooks: years.map((year) => ({
+        conferenceBooks: years.map(year => ({
           year,
           scopus: researchData.conferences.reduce((sum, row) => sum + (parseInt(row[year]) || 0), 0),
         })),
-        patents: years.map((year) => ({
+        patents: years.map(year => ({
           year,
           published: parseInt(researchData.patents.published[year]) || 0,
           granted: parseInt(researchData.patents.granted[year]) || 0,
           percentage: parseFloat(calculatePatentPercentage(year)) || 0,
           commercialized: parseInt(researchData.patents.commercialized[year]) || 0,
         })),
-        researchProjects: researchData.projects.flatMap((row) =>
-          years.map((year) => {
+        researchProjects: researchData.projects
+          .flatMap(row => years.map(year => {
             const amount = parseFloat(row[year]) || 0;
-            if (amount > 0 && row.particular.trim()) {
-              return { particular: row.particular, year, amount };
-            }
-            return null;
-          })
-        ).filter(Boolean),
-        researchGrants: researchData.grants.flatMap((row) =>
-          years.map((year) => {
+            return amount > 0 && row.particular.trim()
+              ? { particular: row.particular.trim(), year, amount }
+              : null;
+          })).filter(Boolean),
+        researchGrants: researchData.grants
+          .flatMap(row => years.map(year => {
             const amount = parseFloat(row[year]) || 0;
-            if (amount > 0 && row.particular.trim()) {
-              return { particular: row.particular, year, amount };
-            }
-            return null;
-          })
-        ).filter(Boolean),
-        consultancies: researchData.consultancy.flatMap((row) =>
-          years.map((year) => {
+            return amount > 0 && row.particular.trim()
+              ? { particular: row.particular.trim(), year, amount }
+              : null;
+          })).filter(Boolean),
+        consultancies: researchData.consultancy
+          .flatMap(row => years.map(year => {
             const amount = parseFloat(row[year]) || 0;
-            if (amount > 0 && row.particular.trim()) {
-              return { particular: row.particular, year, amount };
-            }
-            return null;
-          })
-        ).filter(Boolean),
-        seedMoneys: researchData.seedMoney.flatMap((row) =>
-          years.map((year) => {
+            return amount > 0 && row.particular.trim()
+              ? { particular: row.particular.trim(), year, amount }
+              : null;
+          })).filter(Boolean),
+        seedMoneys: researchData.seedMoney
+          .flatMap(row => years.map(year => {
             const amount = parseFloat(row[year]) || 0;
-            if (amount > 0 && row.particular.trim()) {
-              return { particular: row.particular, year, amount };
-            }
-            return null;
-          })
-        ).filter(Boolean),
-        incubationCentres: years.map((year) => ({
+            return amount > 0 && row.particular.trim()
+              ? { particular: row.particular.trim(), year, amount }
+              : null;
+          })).filter(Boolean),
+        incubationCentres: years.map(year => ({
           year,
           count: parseInt(researchData.incubation.centers[year]) || 0,
         })),
-        sectionEDriveLink: researchData.sectionEDriveLink,
+        sectionEDriveLink: researchData.sectionEDriveLink.trim(),
       };
 
       const method = submissionId ? 'PUT' : 'POST';
@@ -278,28 +294,43 @@ const SectionE = ({ formData = {}, setFormData, onNext, onBack }) => {
         body: JSON.stringify(payload),
       });
 
-      if (!res.ok) {
-        throw new Error('Failed to submit');
-      }
-
+      if (!res.ok) throw new Error('Failed to submit');
       const resData = await res.json();
       setSubmissionId(resData.submissionId);
-      alert(method === 'POST' ? "Section E submitted successfully" : "Section E updated successfully");
-      onNext(); // Proceed to next step after successful submission
+      setTimeout(() => {
+        onNext();
+      }, 2000);
+      toast.success(method === 'POST' ? "Section E submitted successfully!" : "Section E updated successfully!");
+      
     } catch (error) {
       console.error('Error submitting Section E:', error);
-      alert("Failed to submit Section E");
+      toast.error("Failed to submit Section E. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
   if (!researchData || years.length === 0) {
-    return <div>Loading...</div>;
+    return (
+      <div className="fixed inset-0 flex items-center justify-center pb-40">
+        <Loader2 className="w-12 h-12 animate-spin text-teal-500" />
+      </div>
+    );
   }
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-teal-50 to-cyan-50 py-12 px-4">
+            <ToastContainer
+              position="top-right"
+              autoClose={5000}
+              hideProgressBar={false}
+              newestOnTop
+              closeOnClick
+              rtl={false}
+              pauseOnFocusLoss
+              draggable
+              pauseOnHover
+              theme="colored"
+            />
       <div className="max-w-7xl mx-auto">
         <div className="text-center mb-12">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-teal-600 to-teal-700 rounded-full mb-6 shadow-lg">
@@ -349,10 +380,12 @@ const SectionE = ({ formData = {}, setFormData, onNext, onBack }) => {
                           <td key={year} className="p-4">
                             <input
                               type="number"
+                              min="0"
                               placeholder="0"
-                              value={researchData.journals[item.key][year]}
+                              value={researchData.journals[item.key][year] || ''}
                               onChange={(e) => handleInputChange('journals', item.key, year, e.target.value)}
                               className="w-full px-3 py-2 text-center border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors"
+                              required
                             />
                           </td>
                         ))}
@@ -360,6 +393,7 @@ const SectionE = ({ formData = {}, setFormData, onNext, onBack }) => {
                     ))}
                   </tbody>
                 </table>
+                {errors.journals && <p className="mt-2 text-sm text-red-600">{errors.journals}</p>}
               </div>
             </div>
           </div>
@@ -395,16 +429,19 @@ const SectionE = ({ formData = {}, setFormData, onNext, onBack }) => {
                             value={row.particular}
                             onChange={(e) => handleArrayInputChange('conferences', row.id, 'particular', e.target.value)}
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors"
+                            required
                           />
                         </td>
                         {years.map((year) => (
                           <td key={year} className="p-4">
                             <input
                               type="number"
+                              min="0"
                               placeholder="0"
-                              value={row[year]}
+                              value={row[year] || ''}
                               onChange={(e) => handleArrayInputChange('conferences', row.id, year, e.target.value)}
                               className="w-full px-3 py-2 text-center border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors"
+                              required
                             />
                           </td>
                         ))}
@@ -412,24 +449,7 @@ const SectionE = ({ formData = {}, setFormData, onNext, onBack }) => {
                     ))}
                   </tbody>
                 </table>
-                <div className="mt-4 flex justify-center space-x-4">
-                  <button
-                    type="button"
-                    onClick={() => addRow('conferences')}
-                    className="text-teal-600 hover:text-teal-700 font-medium transition-colors"
-                  >
-                    + Add more rows if required
-                  </button>
-                  {researchData.conferences.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => removeRow('conferences')}
-                      className="text-red-600 hover:text-red-700 font-medium transition-colors"
-                    >
-                      - Remove last row
-                    </button>
-                  )}
-                </div>
+                {/* NO ADD/REMOVE ROWS */}
               </div>
             </div>
           </div>
@@ -473,10 +493,12 @@ const SectionE = ({ formData = {}, setFormData, onNext, onBack }) => {
                             ) : (
                               <input
                                 type="number"
+                                min="0"
                                 placeholder="0"
-                                value={researchData.patents[item.key][year]}
+                                value={researchData.patents[item.key][year] || ''}
                                 onChange={(e) => handleInputChange('patents', item.key, year, e.target.value)}
                                 className="w-full px-3 py-2 text-center border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors"
+                                required
                               />
                             )}
                           </td>
@@ -520,16 +542,19 @@ const SectionE = ({ formData = {}, setFormData, onNext, onBack }) => {
                             value={row.particular}
                             onChange={(e) => handleArrayInputChange('projects', row.id, 'particular', e.target.value)}
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors"
+                            required
                           />
                         </td>
                         {years.map((year) => (
                           <td key={year} className="p-4">
                             <input
                               type="number"
+                              min="0"
                               placeholder="0"
-                              value={row[year]}
+                              value={row[year] || ''}
                               onChange={(e) => handleArrayInputChange('projects', row.id, year, e.target.value)}
                               className="w-full px-3 py-2 text-center border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors"
+                              required
                             />
                           </td>
                         ))}
@@ -546,19 +571,11 @@ const SectionE = ({ formData = {}, setFormData, onNext, onBack }) => {
                   </tbody>
                 </table>
                 <div className="mt-4 flex justify-center space-x-4">
-                  <button
-                    type="button"
-                    onClick={() => addRow('projects')}
-                    className="text-teal-600 hover:text-teal-700 font-medium transition-colors"
-                  >
+                  <button type="button" onClick={() => addRow('projects')} className="text-teal-600 hover:text-teal-700 font-medium transition-colors">
                     + Add more rows if required
                   </button>
                   {researchData.projects.length > 2 && (
-                    <button
-                      type="button"
-                      onClick={() => removeRow('projects')}
-                      className="text-red-600 hover:text-red-700 font-medium transition-colors"
-                    >
+                    <button type="button" onClick={() => removeRow('projects')} className="text-red-600 hover:text-red-700 font-medium transition-colors">
                       - Remove last row
                     </button>
                   )}
@@ -598,16 +615,19 @@ const SectionE = ({ formData = {}, setFormData, onNext, onBack }) => {
                             value={row.particular}
                             onChange={(e) => handleArrayInputChange('grants', row.id, 'particular', e.target.value)}
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors"
+                            required
                           />
                         </td>
                         {years.map((year) => (
                           <td key={year} className="p-4">
                             <input
                               type="number"
+                              min="0"
                               placeholder="0"
-                              value={row[year]}
+                              value={row[year] || ''}
                               onChange={(e) => handleArrayInputChange('grants', row.id, year, e.target.value)}
                               className="w-full px-3 py-2 text-center border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors"
+                              required
                             />
                           </td>
                         ))}
@@ -624,19 +644,11 @@ const SectionE = ({ formData = {}, setFormData, onNext, onBack }) => {
                   </tbody>
                 </table>
                 <div className="mt-4 flex justify-center space-x-4">
-                  <button
-                    type="button"
-                    onClick={() => addRow('grants')}
-                    className="text-teal-600 hover:text-teal-700 font-medium transition-colors"
-                  >
+                  <button type="button" onClick={() => addRow('grants')} className="text-teal-600 hover:text-teal-700 font-medium transition-colors">
                     + Add more rows if required
                   </button>
                   {researchData.grants.length > 2 && (
-                    <button
-                      type="button"
-                      onClick={() => removeRow('grants')}
-                      className="text-red-600 hover:text-red-700 font-medium transition-colors"
-                    >
+                    <button type="button" onClick={() => removeRow('grants')} className="text-red-600 hover:text-red-700 font-medium transition-colors">
                       - Remove last row
                     </button>
                   )}
@@ -676,16 +688,19 @@ const SectionE = ({ formData = {}, setFormData, onNext, onBack }) => {
                             value={row.particular}
                             onChange={(e) => handleArrayInputChange('consultancy', row.id, 'particular', e.target.value)}
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors"
+                            required
                           />
                         </td>
                         {years.map((year) => (
                           <td key={year} className="p-4">
                             <input
                               type="number"
+                              min="0"
                               placeholder="0"
-                              value={row[year]}
+                              value={row[year] || ''}
                               onChange={(e) => handleArrayInputChange('consultancy', row.id, year, e.target.value)}
                               className="w-full px-3 py-2 text-center border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors"
+                              required
                             />
                           </td>
                         ))}
@@ -702,19 +717,11 @@ const SectionE = ({ formData = {}, setFormData, onNext, onBack }) => {
                   </tbody>
                 </table>
                 <div className="mt-4 flex justify-center space-x-4">
-                  <button
-                    type="button"
-                    onClick={() => addRow('consultancy')}
-                    className="text-teal-600 hover:text-teal-700 font-medium transition-colors"
-                  >
+                  <button type="button" onClick={() => addRow('consultancy')} className="text-teal-600 hover:text-teal-700 font-medium transition-colors">
                     + Add more rows if required
                   </button>
                   {researchData.consultancy.length > 2 && (
-                    <button
-                      type="button"
-                      onClick={() => removeRow('consultancy')}
-                      className="text-red-600 hover:text-red-700 font-medium transition-colors"
-                    >
+                    <button type="button" onClick={() => removeRow('consultancy')} className="text-red-600 hover:text-red-700 font-medium transition-colors">
                       - Remove last row
                     </button>
                   )}
@@ -754,49 +761,28 @@ const SectionE = ({ formData = {}, setFormData, onNext, onBack }) => {
                             value={row.particular}
                             onChange={(e) => handleArrayInputChange('seedMoney', row.id, 'particular', e.target.value)}
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors"
+                            required
                           />
                         </td>
                         {years.map((year) => (
                           <td key={year} className="p-4">
                             <input
                               type="number"
+                              min="0"
                               placeholder="0"
-                              value={row[year]}
+                              value={row[year] || ''}
                               onChange={(e) => handleArrayInputChange('seedMoney', row.id, year, e.target.value)}
                               className="w-full px-3 py-2 text-center border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors"
+                              required
                             />
                           </td>
                         ))}
                       </tr>
                     ))}
-                    <tr className="bg-teal-50 font-semibold">
-                      <td className="p-4 text-gray-900" colSpan="2">Total</td>
-                      {years.map((year) => (
-                        <td key={year} className="p-4 text-center text-gray-900">
-                          ₹{calculateTotal('seedMoney')[year].toLocaleString('en-IN')}
-                        </td>
-                      ))}
-                    </tr>
+                    {/* TOTAL ROW HIDDEN - LOGIC PRESERVED IN BACKEND */}
                   </tbody>
                 </table>
-                <div className="mt-4 flex justify-center space-x-4">
-                  <button
-                    type="button"
-                    onClick={() => addRow('seedMoney')}
-                    className="text-teal-600 hover:text-teal-700 font-medium transition-colors"
-                  >
-                    + Add more rows if required
-                  </button>
-                  {researchData.seedMoney.length > 2 && (
-                    <button
-                      type="button"
-                      onClick={() => removeRow('seedMoney')}
-                      className="text-red-600 hover:text-red-700 font-medium transition-colors"
-                    >
-                      - Remove last row
-                    </button>
-                  )}
-                </div>
+                {/* NO ADD/REMOVE BUTTONS */}
               </div>
             </div>
           </div>
@@ -827,10 +813,12 @@ const SectionE = ({ formData = {}, setFormData, onNext, onBack }) => {
                         <td key={year} className="p-4">
                           <input
                             type="number"
+                            min="0"
                             placeholder="0"
-                            value={researchData.incubation.centers[year]}
+                            value={researchData.incubation.centers[year] || ''}
                             onChange={(e) => handleInputChange('incubation', 'centers', year, e.target.value)}
                             className="w-full px-3 py-2 text-center border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors"
+                            required
                           />
                         </td>
                       ))}
@@ -852,12 +840,14 @@ const SectionE = ({ formData = {}, setFormData, onNext, onBack }) => {
             <h2 className="text-2xl font-bold text-gray-900 mb-4">Verification Drive Link</h2>
             <p className="text-gray-600 mb-6">Provide a common Google Drive link for verification of all Section E data</p>
             <input
-              type="text"
+              type="url"
               placeholder="https://drive.google.com/..."
               value={researchData.sectionEDriveLink}
-              onChange={(e) => setResearchData((prev) => ({ ...prev, sectionEDriveLink: e.target.value }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors"
+              onChange={(e) => setResearchData(prev => ({ ...prev, sectionEDriveLink: e.target.value }))}
+              className={`w-full px-3 py-2 border ${errors.driveLink ? 'border-red-500' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors`}
+              required
             />
+            {errors.driveLink && <p className="mt-2 text-sm text-red-600">{errors.driveLink}</p>}
           </div>
 
           {/* Navigation */}
@@ -866,7 +856,7 @@ const SectionE = ({ formData = {}, setFormData, onNext, onBack }) => {
               <button
                 type="button"
                 onClick={onBack}
-                className="flex items-center bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-3 px-6 rounded-lg transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2"
+                className="inline-flex items-center px-6 py-3 bg-gray-600 text-white font-semibold rounded-lg hover:bg-gray-700 transition-colors duration-200"
               >
                 <ChevronLeft className="w-5 h-5 mr-2" />
                 Back to Section D
@@ -881,11 +871,11 @@ const SectionE = ({ formData = {}, setFormData, onNext, onBack }) => {
                 {loading ? (
                   <div className="flex items-center">
                     <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                    Submitting...
+                    Saving...
                   </div>
                 ) : (
                   <>
-                    Complete Application
+                    Proceed to Payment
                     <ChevronRight className="w-5 h-5 ml-2" />
                   </>
                 )}
