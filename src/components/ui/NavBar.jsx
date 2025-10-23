@@ -27,7 +27,6 @@ const NavBar = () => {
         const response = await axios.get('https://qae-server.vercel.app/api/section-a/current-user', {
           headers: { Authorization: `Bearer ${token}` },
         });
-
         setUser({
           name: response.data.username || 'User',
           email: response.data.email || '',
