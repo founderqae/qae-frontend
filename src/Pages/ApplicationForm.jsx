@@ -128,9 +128,7 @@ const StepperForm = () => {
     }
   };
 
-  const handleStepClick = (stepIndex) => {
-    setCurrentStep(stepIndex);
-  };
+  
 
   const handleNavigateToSubmissions = () => {
     navigate('/submissions');
@@ -396,13 +394,12 @@ const StepperForm = () => {
         {steps.map((step, index) => {
           const isActive = index === currentStep;
           const isCompleted = index < currentStep;
-          const isClickable = true;
 
           return (
             <div key={step.id} className="stepper-wrapper">
               <div
-                className={`stepper-item ${isActive ? 'active' : ''} ${isCompleted ? 'completed' : ''} ${isClickable ? 'clickable' : ''}`}
-                onClick={() => isClickable && handleStepClick(index)}
+                className={`stepper-item ${isActive ? 'active' : ''} ${isCompleted ? 'completed' : ''}`}
+               
               >
                 <div className="stepper-circle">
                   {isCompleted ? (
@@ -474,14 +471,6 @@ const StepperForm = () => {
           align-items: center;
           transition: all 0.3s ease;
           cursor: default;
-        }
-
-        .stepper-item.clickable {
-          cursor: pointer;
-        }
-
-        .stepper-item.clickable:hover {
-          transform: translateY(-2px);
         }
 
         .stepper-item.active {
