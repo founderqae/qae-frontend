@@ -184,9 +184,11 @@ const AboutPage = () => {
             <p className="text-slate-700 text-lg mb-6 max-w-2xl mx-auto">
               Join us in our mission to elevate Indian education to global standards. Together, we can build institutions that are recognized for excellence, innovation, and impact.
             </p>
+            <a href='contact'>
             <button className="bg-teal-600 hover:bg-teal-700 text-white font-semibold px-8 py-3 rounded-lg transition-colors">
               Get in Touch
             </button>
+            </a>
           </div>
         </section>
       </div>

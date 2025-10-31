@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import Rank2 from '../../assets/Rank2.jpg';
+import Rank2 from '../../assets/Rank4.jpg';
 import Rank5 from '../../assets/Rank5.png';
 import Rank3 from '../../assets/Rank3.jpg';
 

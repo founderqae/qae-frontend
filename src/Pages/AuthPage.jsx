@@ -493,8 +493,8 @@ const AuthPage = () => {
             disabled={isLoading}
           />
           <label htmlFor="terms" className="ml-3 text-sm text-gray-600">
-            I agree to the <span className="text-teal-600 hover:text-teal-700 cursor-pointer">Terms of Service</span> and{' '}
-            <span className="text-teal-600 hover:text-teal-700 cursor-pointer">Privacy Policy</span>
+            I agree to the <a href='/terms-of-service' className="text-teal-600 hover:text-teal-700 cursor-pointer">Terms of Service</a> and{' '}
+            <a href='/privacy-policy' className="text-teal-600 hover:text-teal-700 cursor-pointer">Privacy Policy</a>
           </label>
         </div>
 

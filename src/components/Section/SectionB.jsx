@@ -51,7 +51,6 @@ const SectionB = ({ onNext, onBack }) => {
       const response = await axios.get('https://qae-server.vercel.app/api/config/year', {
         headers: getAuthHeader(),
       });
-      console.log('Year Config Response:', response.data);
       const config = response.data;
       if (!config.p || !config.pMinus1 || !config.pMinus2) {
         throw new Error('Invalid year configuration data');
@@ -76,7 +75,6 @@ const SectionB = ({ onNext, onBack }) => {
         status: err.response?.status,
       });
       if (retryCount > 0) {
-        console.log(`Retrying fetchYearConfig (${retryCount} attempts left)...`);
         await new Promise(resolve => setTimeout(resolve, delay));
         return fetchYearConfig(retryCount - 1, delay * 2);
       }
@@ -93,7 +91,6 @@ const currentYear = new Date().getFullYear();
       const response = await axios.get(`https://qae-server.vercel.app/api/submit/submissions/section-b?year=${currentYear}`, {
         headers: getAuthHeader(),
       });
-      console.log('Section B Data Response:', response.data);
       const data = response.data;
 
       const transformToObject = (arr, keys) => {

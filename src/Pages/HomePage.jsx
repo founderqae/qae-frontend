@@ -4,6 +4,7 @@ import HeroContentSection from '../components/Home/HeroContentSection';
 import StatsSection from '../components/Home/StatsSection';
 import RankingCriteriaSection from '../components/Home/RankingCriteriaSection';
 import TopCollegesSection from '../components/Home/TopCollegesSection';
+import AuditServicesSection from '../components/Home/AuditServicesSection';
 
 const HomePage = () => {
   return (
@@ -13,6 +14,7 @@ const HomePage = () => {
       <HeroContentSection />
       <StatsSection />
       <RankingCriteriaSection />
+      <AuditServicesSection />
       {/* <TopCollegesSection /> */}
     </>
   );

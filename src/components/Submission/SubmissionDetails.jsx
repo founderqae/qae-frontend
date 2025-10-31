@@ -52,11 +52,21 @@ const SubmissionDetailPage = () => {
           sectionE: generatedYears,
         });
 
+        // Fetch submission data from getSubmissions endpoint
+      const submissionsRes = await axios.get(
+        `https://qae-server.vercel.app/api/submit/submissions/payment`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      const submissionsData = submissionsRes.data;
+
+
         // Fetch Section A (general information)
         const sectionARes = await axios.get(`https://qae-server.vercel.app/api/section-a?year=${inputYear}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
-        const { sectionA, submissionId: sectionASubmissionId, status, sectionACompleted } = sectionARes.data;
+        const { sectionA, submissionId: sectionASubmissionId} = sectionARes.data;
 
         // if (!sectionACompleted) {
         //   throw new Error('Section A is not completed yet');
@@ -365,12 +375,15 @@ const sectionDData = {
   atm: sectionD.hasATM === 'yes' || sectionD.hasATM === true ? 'Yes' : 'No',
   wifi: (sectionD.hasWiFi === 'yes' || sectionD.hasWiFi === true || sectionD.hasWifi === 'Yes') ? 'Yes' : 'No',
   wifiDetails: sectionD.hasWiFi === 'yes' || sectionD.hasWifi === 'Yes' ? (sectionD.wifiDetails || sectionD.hasWifi || 'N/A') : 'N/A',
-  iqac: sectionD.hasIQAC === 'yes' || sectionD.hasIQAC ? 'Yes' : 'No',
-  iqacEstablished: sectionD.iqacEstablishmentDate || sectionD.hasIQAC ? 
-    (typeof sectionD.iqacEstablishmentDate === 'string' ? 
-      sectionD.iqacEstablishmentDate.split('T')[0] : 
-      new Date(sectionD.iqacEstablishmentDate).toLocaleDateString('en-US')
-    ) : 'N/A',
+  iqac: sectionD.hasIQAC === 'yes' || sectionD.hasIQAC === true ? 'Yes' : 'No',
+iqacEstablished: 
+  (sectionD.hasIQAC === 'yes' || sectionD.hasIQAC === true) && sectionD.iqacEstablishmentDate
+    ? (
+        typeof sectionD.iqacEstablishmentDate === 'string'
+          ? sectionD.iqacEstablishmentDate.split('T')[0]
+          : new Date(sectionD.iqacEstablishmentDate).toLocaleDateString('en-US')
+      )
+    : 'N/A',
   
   // Library
   centralLibrary: sectionD.centralLibraryArea ? Number(sectionD.centralLibraryArea).toLocaleString('en-IN') + ' sq.ft' : 'N/A',
@@ -533,8 +546,10 @@ const sectionDData = {
         const fetchedSubmissionData = {
           id: sectionASubmissionId,
           collegeName: sectionAData.institutionName,
-          submittedAt: sectionB.submittedAt || 'N/A',
-          isPaid: sectionB.isPaid || false,
+          submittedAt: submissionsData.submittedAt
+          ? new Date(submissionsData.submittedAt).toLocaleString('en-US')
+          : 'N/A',
+        isPaid: submissionsData.isPaid || false,
           sectionA,
           sectionB: sectionBData,
           sectionC: sectionCData,
@@ -640,7 +655,7 @@ const sectionDData = {
             <div className="flex items-start justify-between">
               <div>
                 <h1 className="text-3xl font-bold text-white mb-2">{submissionData.collegeName}</h1>
-                <p className="text-teal-50 text-sm">Submission ID: {submissionData.id} | Submitted: {submissionData.submittedAt} | Status: {submissionData.status}</p>
+                <p className="text-teal-50 text-sm">Submission ID: {submissionData.id} | Submitted: {submissionData.submittedAt}</p>
               </div>
               <button
                 onClick={() => generateSubmissionPDF(submissionData)}
@@ -679,7 +694,6 @@ const sectionDData = {
             <DataRow label="Applicant Designation" value={submissionData.sectionA.applicantDesignation} />
             <DataRow label="Contact Number" value={submissionData.sectionA.applicantContact} />
             <DataRow label="Email" value={submissionData.sectionA.applicantEmail} />
-            <DataRow label="Field" value={submissionData.sectionA.field} />
           </Section>
 
           {/* Section B */}

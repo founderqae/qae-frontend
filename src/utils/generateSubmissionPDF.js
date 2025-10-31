@@ -32,7 +32,7 @@ export const generateSubmissionPDF = (submissionData) => {
   pdf.text(submissionData.collegeName, margin, 20);
   pdf.setFontSize(10);
   pdf.setFont('helvetica', 'normal');
-  pdf.text(`Submission ID: ${submissionData.id} | Submitted: ${submissionData.submittedAt} | Status: ${submissionData.status || 'N/A'}`, margin, 30);
+  pdf.text(`Submission ID: ${submissionData.id} | Submitted: ${submissionData.submittedAt}`, margin, 30);
 
   yPosition = 50;
   pdf.setTextColor(0, 0, 0);
@@ -139,7 +139,6 @@ export const generateSubmissionPDF = (submissionData) => {
   addDataRow('Applicant Designation', submissionData.sectionA.applicantDesignation);
   addDataRow('Contact Number', submissionData.sectionA.applicantContact);
   addDataRow('Email', submissionData.sectionA.applicantEmail);
-  addDataRow('Field', submissionData.sectionA.field);
 
   // SECTION B: Gender Information, Diversity and Finance
   addSectionHeader('Section B: Gender Information, Diversity and Finance');

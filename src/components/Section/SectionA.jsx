@@ -171,7 +171,6 @@ const SectionA = ({ formData, setFormData, onNext }) => {
         });
 
         const sectionA = response.data.sectionA;
-        console.log("Fetched Section A data:", sectionA);
 
         if (sectionA && sectionA.instituteId) {
           setFormData({
@@ -202,7 +201,6 @@ const SectionA = ({ formData, setFormData, onNext }) => {
           setSubmissionId(sectionA.instituteId);
           setIsEditing(true);
         } else {
-          console.log("No Section A data found for user");
         }
       } catch (error) {
         console.error("Error fetching Section A:", error.response?.data || error.message);

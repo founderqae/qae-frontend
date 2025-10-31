@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Check, XCircle, CheckCircle, ExternalLink } from 'lucide-react';
+import { Check, XCircle, CheckCircle, ExternalLink, Clock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import SectionA from '../components/Section/SectionA';
 import SectionB from '../components/Section/SectionB';
@@ -7,18 +7,25 @@ import SectionC from '../components/Section/SectionC';
 import SectionD from '../components/Section/SectionD';
 import SectionE from '../components/Section/SectionE';
 import Payment from '../components/Section/Payment';
-import axios from 'axios'; // Assuming axios for API calls
+import axios from 'axios';
 
 const StepperForm = () => {
   const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(0);
-  
-  // Application status states (now fetched from backend)
-  const [isApplicationOpen, setIsApplicationOpen] = useState(false);
+
+  // Application status states
+  const [appStatus, setAppStatus] = useState({
+    isOpen: false,
+    isStarted: false,
+    year: null,
+    startDate: null,
+    endDate: null,
+    message: null,
+  });
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  
+
   const [formData, setFormData] = useState({
     institutionName: "",
     yearEstablished: "",
@@ -45,42 +52,12 @@ const StepperForm = () => {
   });
 
   const steps = [
-    {
-      id: 'A',
-      title: 'Institution Details',
-      description: 'Basic information about your institution',
-      component: SectionA
-    },
-    {
-      id: 'B',
-      title: 'Academic Programs',
-      description: 'Courses and curriculum details',
-      component: SectionB
-    },
-    {
-      id: 'C',
-      title: 'Faculty & Staff',
-      description: 'Teaching and support staff information',
-      component: SectionC
-    },
-    {
-      id: 'D',
-      title: 'Infrastructure',
-      description: 'Campus facilities and resources',
-      component: SectionD
-    },
-    {
-      id: 'E',
-      title: 'Documents',
-      description: 'Required certificates and attachments',
-      component: SectionE
-    },
-    {
-      id: 'F',
-      title: 'Payment',
-      description: 'Application fee payment',
-      component: Payment
-    }
+    { id: 'A', title: 'Institution Details', description: 'Basic information about your institution', component: SectionA },
+    { id: 'B', title: 'Academic Programs', description: 'Courses and curriculum details', component: SectionB },
+    { id: 'C', title: 'Faculty & Staff', description: 'Teaching and support staff information', component: SectionC },
+    { id: 'D', title: 'Infrastructure', description: 'Campus facilities and resources', component: SectionD },
+    { id: 'E', title: 'Documents', description: 'Required certificates and attachments', component: SectionE },
+    { id: 'F', title: 'Payment', description: 'Application fee payment', component: Payment }
   ];
 
   useEffect(() => {
@@ -89,22 +66,37 @@ const StepperForm = () => {
         setLoading(true);
         setError(null);
         const token = localStorage.getItem('token');
-        if (!token) {
-          throw new Error('No authentication token found. Please log in.');
-        }
 
-        // Fetch if application is open
+        // Fetch application open status + dates
         const openResponse = await axios.get('https://qae-server.vercel.app/api/date-config/is-open');
-        setIsApplicationOpen(openResponse.data.isOpen);
+        const { isOpen, year, startDate, endDate, message } = openResponse.data;
 
-        // Fetch if user has submitted (requires auth, assuming token is set)
-        const submittedResponse = await axios.get('https://qae-server.vercel.app/api/submit/is-submitted',
-           {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+        const now = Date.now();
+        const start = startDate ? new Date(startDate).getTime() : null;
+        const end = endDate ? new Date(endDate).getTime() : null;
+
+        const isStarted = start ? now >= start : false;
+
+        setAppStatus({
+          isOpen,
+          isStarted,
+          year,
+          startDate,
+          endDate,
+          message,
         });
-        setIsSubmitted(submittedResponse.data.isSubmitted);
+
+        // Only check submission if application has started
+        if (isStarted && token) {
+          try {
+            const submittedResponse = await axios.get('https://qae-server.vercel.app/api/submit/is-submitted', {
+              headers: { Authorization: `Bearer ${token}` },
+            });
+            setIsSubmitted(submittedResponse.data.isSubmitted);
+          } catch (subErr) {
+            console.warn('Could not check submission status:', subErr);
+          }
+        }
       } catch (err) {
         setError('Failed to fetch application status. Please try again.');
         console.error(err);
@@ -117,26 +109,30 @@ const StepperForm = () => {
   }, []);
 
   const handleNext = () => {
-    if (currentStep < steps.length - 1) {
-      setCurrentStep(currentStep + 1);
-    }
+    if (currentStep < steps.length - 1) setCurrentStep(currentStep + 1);
   };
 
   const handleBack = () => {
-    if (currentStep > 0) {
-      setCurrentStep(currentStep - 1);
-    }
+    if (currentStep > 0) setCurrentStep(currentStep - 1);
   };
-
-  
 
   const handleNavigateToSubmissions = () => {
     navigate('/submissions');
   };
 
-  // Get current year dynamically
   const currentYear = new Date().getFullYear();
 
+  const formatDate = (iso) =>
+    iso ? new Date(iso).toLocaleString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZoneName: 'short',
+    }) : 'Not Set';
+
+  // Loading State
   if (loading) {
     return (
       <div className="stepper-container">
@@ -150,69 +146,96 @@ const StepperForm = () => {
           </div>
         </div>
         <style jsx>{`
-          .stepper-container {
-            min-height: 100vh;
-            background: linear-gradient(135deg, #f0fdfa 0%, #e6fffa 100%);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 2rem;
-          }
-
-          .status-message-container {
-            width: 100%;
-            max-width: 600px;
-          }
-
-          .status-card {
-            background: transparent;
-            border-radius: 16px;
-            padding: 3rem;
-            text-align: center;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0);
-          }
-
-
-          .spinner-container {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            margin-bottom: 1.5rem;
-          }
-
-          .status-title {
-            font-size: 2rem;
-            font-weight: 700;
-            color: ;
-            margin-bottom: 1rem;
-          }
-
-          .status-description {
-            font-size: 1.125rem;
-            color: #6b7280;
-            line-height: 1.6;
-          }
+          .stepper-container { min-height: 100vh; background: linear-gradient(135deg, #f0fdfa 0%, #e6fffa 100%); display: flex; align-items: center; justify-content: center; padding: 2rem; }
+          .status-message-container { width: 100%; max-width: 600px; }
+          .status-card { background: transparent; border-radius: 16px; padding: 3rem; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0); }
+          .spinner-container { display: flex; justify-content: center; margin-bottom: 1.5rem; }
+          .status-title { font-size: 2rem; font-weight: 700; color: #1f2937; margin-bottom: 1rem; }
+          .status-description { font-size: 1.125rem; color: #6b7280; line-height: 1.6; }
         `}</style>
       </div>
     );
   }
 
+  // Error State
   if (error) {
     return (
       <div className="stepper-container">
         <div className="status-message-container">
-          <div className="status-card closed">
-            <XCircle className="status-icon closed-icon" />
+          <div className="status-card error">
+            <XCircle className="status-icon error-icon" />
             <h2 className="status-title">Error</h2>
             <p className="status-description">{error}</p>
           </div>
         </div>
+        <style jsx>{`
+          .status-card { background: white; border-radius: 16px; padding: 3rem; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.1); border: 2px solid #fee2e2; }
+          .status-icon { width: 80px; height: 80px; margin: 0 auto 1.5rem; }
+          .error-icon { color: #dc2626; }
+          .status-title { font-size: 2rem; font-weight: 700; color: #1f2937; margin-bottom: 1rem; }
+          .status-description { font-size: 1.125rem; color: #6b7280; line-height: 1.6; }
+        `}</style>
       </div>
     );
   }
 
-  // Show "Application Closed" message
-  if (!isApplicationOpen) {
+  // Custom Admin Message (overrides all)
+  if (appStatus.message) {
+    return (
+      <div className="stepper-container">
+        <div className="status-message-container">
+          <div className="status-card custom">
+            <h2 className="status-title">Important Notice</h2>
+            <p className="status-description">{appStatus.message}</p>
+          </div>
+        </div>
+        <style jsx>{`
+          .status-card { background: white; border-radius: 16px; padding: 3rem; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.1); border: 2px solid #fde68a; }
+          .status-title { font-size: 2rem; font-weight: 700; color: #92400e; margin-bottom: 1rem; }
+          .status-description { font-size: 1.125rem; color: #6b7280; line-height: 1.6; }
+        `}</style>
+      </div>
+    );
+  }
+
+  // Not Yet Started
+  if (!appStatus.isStarted) {
+    return (
+      <div className="stepper-container">
+        <div className="status-message-container">
+          <div className="status-card not-started">
+            <Clock className="status-icon pending-icon" />
+            <h2 className="status-title">Applications Not Yet Started</h2>
+            <p className="status-description">
+              The application period for <strong>QAE Rankings {appStatus.year || currentYear}</strong> has not started yet.
+            </p>
+            {appStatus.startDate && (
+              <p className="status-detail">
+                <strong>Opens on:</strong> {formatDate(appStatus.startDate)}
+              </p>
+            )}
+            <p className="status-note">
+              Please check back after the opening date to submit your application.
+            </p>
+          </div>
+        </div>
+        <style jsx>{`
+          .stepper-container { min-height: 100vh; background: linear-gradient(135deg, #f0fdfa 0%, #e6fffa 100%); display: flex; align-items: center; justify-content: center; padding: 2rem; }
+          .status-message-container { width: 100%; max-width: 600px; }
+          .status-card { background: white; border-radius: 16px; padding: 3rem; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.1); border: 2px solid #fde68a; }
+          .status-icon { width: 80px; height: 80px; margin: 0 auto 1.5rem; }
+          .pending-icon { color: #f59e0b; }
+          .status-title { font-size: 2rem; font-weight: 700; color: #1f2937; margin-bottom: 1rem; }
+          .status-description { font-size: 1.125rem; color: #6b7280; line-height: 1.6; margin-bottom: 1rem; }
+          .status-detail { font-size: 1.1rem; color: #374151; margin: 1.5rem 0; }
+          .status-note { font-size: 1rem; color: #6b7280; font-style: italic; }
+        `}</style>
+      </div>
+    );
+  }
+
+  // Application Closed
+  if (!appStatus.isOpen) {
     return (
       <div className="stepper-container">
         <div className="status-message-container">
@@ -220,66 +243,28 @@ const StepperForm = () => {
             <XCircle className="status-icon closed-icon" />
             <h2 className="status-title">Application is Closed</h2>
             <p className="status-description">
-              The application period has ended. Please check back during the next application cycle.
+              The application period for QAE Rankings {appStatus.year || currentYear} has ended.
             </p>
+            {appStatus.endDate && (
+              <p className="status-detail">
+                <strong>Closed on:</strong> {formatDate(appStatus.endDate)}
+              </p>
+            )}
           </div>
         </div>
         <style jsx>{`
-          .stepper-container {
-            min-height: 100vh;
-            background: linear-gradient(135deg, #f0fdfa 0%, #e6fffa 100%);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 2rem;
-          }
-
-          .status-message-container {
-            width: 100%;
-            max-width: 600px;
-          }
-
-          .status-card {
-            background: white;
-            border-radius: 16px;
-            padding: 3rem;
-            text-align: center;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
-            border: 2px solid #fee2e2;
-          }
-
-          .status-card.closed {
-            border-color: #fee2e2;
-          }
-
-          .status-icon {
-            width: 80px;
-            height: 80px;
-            margin: 0 auto 1.5rem;
-          }
-
-          .closed-icon {
-            color: #dc2626;
-          }
-
-          .status-title {
-            font-size: 2rem;
-            font-weight: 700;
-            color: #1f2937;
-            margin-bottom: 1rem;
-          }
-
-          .status-description {
-            font-size: 1.125rem;
-            color: #6b7280;
-            line-height: 1.6;
-          }
+          .status-card { background: white; border-radius: 16px; padding: 3rem; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.1); border: 2px solid #fee2e2; }
+          .status-icon { width: 80px; height: 80px; margin: 0 auto 1.5rem; }
+          .closed-icon { color: #dc2626; }
+          .status-title { font-size: 2rem; font-weight: 700; color: #1f2937; margin-bottom: 1rem; }
+          .status-description { font-size: 1.125rem; color: #6b7280; line-height: 1.6; margin-bottom: 1rem; }
+          .status-detail { font-size: 1.1rem; color: #374151; }
         `}</style>
       </div>
     );
   }
 
-  // Show "Already Submitted" message
+  // Already Submitted
   if (isSubmitted) {
     return (
       <div className="stepper-container">
@@ -288,108 +273,37 @@ const StepperForm = () => {
             <CheckCircle className="status-icon submitted-icon" />
             <h2 className="status-title">Application Already Submitted</h2>
             <p className="status-description">
-              You have already submitted your application for {currentYear}. You can view your submission details below.
+              You have successfully submitted your application for QAE Rankings {appStatus.year || currentYear}.
             </p>
-            <button 
-              onClick={handleNavigateToSubmissions}
-              className="navigate-button"
-            >
+            <button onClick={handleNavigateToSubmissions} className="navigate-button">
               View Submissions
               <ExternalLink className="button-icon" />
             </button>
           </div>
         </div>
         <style jsx>{`
-          .stepper-container {
-            min-height: 100vh;
-            background: linear-gradient(135deg, #f0fdfa 0%, #e6fffa 100%);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 2rem;
-          }
-
-          .status-message-container {
-            width: 100%;
-            max-width: 600px;
-          }
-
-          .status-card {
-            background: white;
-            border-radius: 16px;
-            padding: 3rem;
-            text-align: center;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
-          }
-
-          .status-card.submitted {
-            border: 2px solid #d1fae5;
-          }
-
-          .status-icon {
-            width: 80px;
-            height: 80px;
-            margin: 0 auto 1.5rem;
-          }
-
-          .submitted-icon {
-            color: #10b981;
-          }
-
-          .status-title {
-            font-size: 2rem;
-            font-weight: 700;
-            color: #1f2937;
-            margin-bottom: 1rem;
-          }
-
-          .status-description {
-            font-size: 1.125rem;
-            color: #6b7280;
-            line-height: 1.6;
-            margin-bottom: 2rem;
-          }
-
-          .navigate-button {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            background: linear-gradient(135deg, #0f766eff, #0d9488);
-            color: white;
-            padding: 0.875rem 2rem;
-            border-radius: 8px;
-            font-weight: 600;
-            font-size: 1rem;
-            border: none;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 12px rgba(15, 118, 110, 0.3);
-          }
-
-          .navigate-button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(15, 118, 110, 0.4);
-          }
-
-          .button-icon {
-            width: 18px;
-            height: 18px;
-          }
+          .status-card { background: white; border-radius: 16px; padding: 3rem; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.1); border: 2px solid #d1fae5; }
+          .status-icon { width: 80px; height: 80px; margin: 0 auto 1.5rem; }
+          .submitted-icon { color: #10b981; }
+          .status-title { font-size: 2rem; font-weight: 700; color: #1f2937; margin-bottom: 1rem; }
+          .status-description { font-size: 1.125rem; color: #6b7280; line-height: 1.6; margin-bottom: 2rem; }
+          .navigate-button { display: inline-flex; align-items: center; gap: 0.5rem; background: linear-gradient(135deg, #0f766e, #0d9488); color: white; padding: 0.875rem 2rem; border-radius: 8px; font-weight: 600; font-size: 1rem; border: none; cursor: pointer; transition: all 0.3s ease; box-shadow: 0 4px 12px rgba(15,118,110,0.3); }
+          .navigate-button:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(15,118,110,0.4); }
+          .button-icon { width: 18px; height: 18px; }
         `}</style>
       </div>
     );
   }
 
-  // Show the normal application form
+  // Normal Form (Application Open & Not Submitted)
   const CurrentComponent = steps[currentStep].component;
 
   return (
     <div className="stepper-container">
-      {/* Submission Year Header */}
       <div className="submission-year-header">
-        <h1 className="submission-year-title">Submission for {currentYear}</h1>
+        <h1 className="submission-year-title">Submission for QAE Rankings {appStatus.year || currentYear}</h1>
       </div>
-      {/* Stepper Navigation */}
+
       <div className="stepper-nav">
         {steps.map((step, index) => {
           const isActive = index === currentStep;
@@ -397,16 +311,9 @@ const StepperForm = () => {
 
           return (
             <div key={step.id} className="stepper-wrapper">
-              <div
-                className={`stepper-item ${isActive ? 'active' : ''} ${isCompleted ? 'completed' : ''}`}
-               
-              >
+              <div className={`stepper-item ${isActive ? 'active' : ''} ${isCompleted ? 'completed' : ''}`}>
                 <div className="stepper-circle">
-                  {isCompleted ? (
-                    <Check className="step-icon" />
-                  ) : (
-                    <span className="step-letter">{step.id}</span>
-                  )}
+                  {isCompleted ? <Check className="step-icon" /> : <span className="step-letter">{step.id}</span>}
                 </div>
                 <div className="stepper-content">
                   <h3 className="step-title">Section {step.id}</h3>
@@ -421,7 +328,6 @@ const StepperForm = () => {
         })}
       </div>
 
-      {/* Content Area */}
       <div className="stepper-main">
         <CurrentComponent
           formData={formData}

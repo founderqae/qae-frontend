@@ -59,12 +59,12 @@ const [loading, setLoading] = useState(false);
           incubation: { centers: { ...emptyYears } },
           sectionEDriveLink: '',
         };
-
+        const currentYear = new Date().getFullYear();
         let existingData = null;
         let existingSubmissionId = null;
 
         try {
-          const sectionRes = await fetch('https://qae-server.vercel.app/api/submit/submissions/section-e', {
+          const sectionRes = await fetch(`https://qae-server.vercel.app/api/submit/submissions/section-e?year=${currentYear}`, {
             headers: { Authorization: `Bearer ${token}` },
           });
           if (sectionRes.ok) {
@@ -203,11 +203,10 @@ const [loading, setLoading] = useState(false);
   const validateForm = () => {
     const newErrors = {};
 
-    if (!researchData.sectionEDriveLink.trim()) {
-      newErrors.driveLink = "Verification Drive Link is required.";
-    } else if (!/^https?:\/\/drive\.google\.com/.test(researchData.sectionEDriveLink)) {
-      newErrors.driveLink = "Please enter a valid Google Drive link.";
-    }
+    if (!researchData.sectionEDriveLink || !/^(https?:\/\/)/.test(researchData.sectionEDriveLink)) {
+          toast.error('Please provide a valid Google Drive link');
+          return false;
+        }
 
     const hasJournal = years.some(year =>
       parseInt(researchData.journals.sci[year]) > 0 ||
