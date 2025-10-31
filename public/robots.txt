@@ -1,0 +1,26 @@
+User-agent: *
+Allow: /
+
+# Allow all public routes
+Allow: /$
+Allow: /about
+Allow: /leaderboard
+Allow: /faqs
+Allow: /contact
+Allow: /privacy-policy
+Allow: /terms-of-service
+Allow: /methodology
+Allow: /auth
+
+# Disallow all protected routes
+Disallow: /profile
+Disallow: /settings
+Disallow: /application
+Disallow: /submissions
+Disallow: /submission-detail/
+
+# Disallow any dynamic or sensitive paths
+Disallow: /api/
+Disallow: /*?*   # Optional: block query strings if not needed
+
+Sitemap: https://qae.co.in/sitemap.xml
