@@ -105,7 +105,7 @@ const SectionD = ({ onNext, onBack }) => {
     try {
       setLoading(true);
       const { data } = await axios.get(
-        'https://qae-server.vercel.apprcel.app/api/config/year',
+        'https://qae-server.vercel.app/api/config/year',
         { headers: getAuthHeader() }
       );
       if (!data.p) throw new Error('Invalid year configuration');
@@ -127,7 +127,7 @@ const SectionD = ({ onNext, onBack }) => {
     setLoading(true);
     try {
       const { data } = await axios.get(
-        `https://qae-server.vercel.apprcel.app/api/submit/submissions/section-d?year=${currentYear}`,
+        `https://qae-server.vercel.app/api/submit/submissions/section-d?year=${currentYear}`,
         { headers: getAuthHeader() }
       );
 
@@ -341,7 +341,7 @@ const SectionD = ({ onNext, onBack }) => {
 
       try {
         await axios.put(
-          `https://qae-server.vercel.apprcel.app/api/submit/submissions/section-d`,
+          `https://qae-server.vercel.app/api/submit/submissions/section-d`,
           payload,
           { headers }
         );
@@ -349,7 +349,7 @@ const SectionD = ({ onNext, onBack }) => {
       } catch (putErr) {
         if (putErr.response?.status === 404) {
           await axios.post(
-            `https://qae-server.vercel.apprcel.app/api/submit/submissions/section-d`,
+            `https://qae-server.vercel.app/api/submit/submissions/section-d`,
             payload,
             { headers }
           );
