@@ -669,7 +669,7 @@ const SectionA = ({ formData, setFormData, onNext }) => {
                     type="tel"
                     value={formData.applicantContact || ""}
                     onChange={(e) => handleInputChange("applicantContact", e.target.value)}
-                    placeholder="+91 9876543210"
+                    placeholder="Enter Phone Number"
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-colors text-gray-900 placeholder-gray-500"
                     required
                   />
