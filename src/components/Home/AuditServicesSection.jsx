@@ -69,11 +69,11 @@ export default function AuditServicesSection() {
             </h4>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
               <a 
-                href="mailto:audits.qae@gmail.com"
+                href="mailto:admin@qae.co.in"
                 className="flex items-center text-gray-700 hover:text-teal-600 transition-colors"
               >
                 <Mail className="w-5 h-5 mr-2 text-teal-600" />
-                <span>founderqae@gmail.com</span>
+                <span>admin@qae.co.in</span>
               </a>
               <div className="hidden sm:block w-px h-6 bg-gray-300"></div>
               <a 
@@ -81,7 +81,7 @@ export default function AuditServicesSection() {
                 className="flex items-center text-gray-700 hover:text-teal-600 transition-colors"
               >
                 <Phone className="w-5 h-5 mr-2 text-teal-600" />
-                <span>+91 7010608490</span>
+                <span>80-72403817</span>
               </a>
             </div>
           </div>
