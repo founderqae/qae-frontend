@@ -93,13 +93,13 @@ const ContactPage = () => {
     {
       icon: <Mail className="w-6 h-6" />,
       title: "Email Us",
-      details: ["founderqae@gmail.com"],
+      details: [" admin@qae.co.in "],
       color: "teal"
     },
     {
       icon: <Phone className="w-6 h-6" />,
       title: "Call Us",
-      details: ["+917010608490"],
+      details: ["80-72403817"],
       color: "teal"
     },
     {
